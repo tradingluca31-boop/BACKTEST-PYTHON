@@ -10,7 +10,6 @@ Auteur: tradingluca31-boop
 
 import pandas as pd
 import numpy as np
-import quantstats as qs
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -19,6 +18,15 @@ from datetime import datetime, timedelta
 import warnings
 import io
 import base64
+
+# Import QuantStats avec gestion d'erreur
+try:
+    import quantstats as qs
+    QUANTSTATS_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"QuantStats non disponible: {e}")
+    QUANTSTATS_AVAILABLE = False
+    import scipy.stats as stats
 
 warnings.filterwarnings('ignore')
 
@@ -95,37 +103,101 @@ class BacktestAnalyzerPro:
 
     def calculate_all_metrics(self):
         """
-        Calculer toutes les métriques via QuantStats + custom
+        Calculer toutes les métriques avec QuantStats (si disponible) ou implémentation custom
         """
         metrics = {}
 
         try:
-            # Métriques QuantStats standards
-            metrics['CAGR'] = qs.stats.cagr(self.returns)
-            metrics['Sharpe'] = qs.stats.sharpe(self.returns)
-            metrics['Sortino'] = qs.stats.sortino(self.returns)
-            metrics['Calmar'] = qs.stats.calmar(self.returns)
-            metrics['Max_Drawdown'] = qs.stats.max_drawdown(self.returns)
-            metrics['Volatility'] = qs.stats.volatility(self.returns)
-            metrics['VaR'] = qs.stats.var(self.returns)
-            metrics['CVaR'] = qs.stats.cvar(self.returns)
-            metrics['Win_Rate'] = qs.stats.win_rate(self.returns)
-            metrics['Profit_Factor'] = qs.stats.profit_factor(self.returns)
+            if QUANTSTATS_AVAILABLE:
+                # Utiliser QuantStats si disponible
+                metrics['CAGR'] = qs.stats.cagr(self.returns)
+                metrics['Sharpe'] = qs.stats.sharpe(self.returns)
+                metrics['Sortino'] = qs.stats.sortino(self.returns)
+                metrics['Calmar'] = qs.stats.calmar(self.returns)
+                metrics['Max_Drawdown'] = qs.stats.max_drawdown(self.returns)
+                metrics['Volatility'] = qs.stats.volatility(self.returns)
+                metrics['VaR'] = qs.stats.var(self.returns)
+                metrics['CVaR'] = qs.stats.cvar(self.returns)
+                metrics['Win_Rate'] = qs.stats.win_rate(self.returns)
+                metrics['Profit_Factor'] = qs.stats.profit_factor(self.returns)
+                metrics['Omega_Ratio'] = qs.stats.omega(self.returns)
+                metrics['Recovery_Factor'] = qs.stats.recovery_factor(self.returns)
+                metrics['Skewness'] = qs.stats.skew(self.returns)
+                metrics['Kurtosis'] = qs.stats.kurtosis(self.returns)
+            else:
+                # Implémentation custom fallback
+                returns = self.returns.dropna()
 
-            # Métriques avancées
-            metrics['Omega_Ratio'] = qs.stats.omega(self.returns)
-            metrics['Recovery_Factor'] = qs.stats.recovery_factor(self.returns)
-            metrics['Skewness'] = qs.stats.skew(self.returns)
-            metrics['Kurtosis'] = qs.stats.kurtosis(self.returns)
+                if len(returns) == 0:
+                    return {key: 0.0 for key in ['CAGR', 'Sharpe', 'Sortino', 'Max_Drawdown',
+                                   'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg']}
 
-            # Métrique personnalisée
+                # CAGR (Compound Annual Growth Rate)
+                total_return = (1 + returns).prod() - 1
+                years = len(returns) / 252  # Assuming 252 trading days per year
+                metrics['CAGR'] = (1 + total_return) ** (1/years) - 1 if years > 0 else 0
+
+                # Volatilité annualisée
+                metrics['Volatility'] = returns.std() * np.sqrt(252)
+
+                # Sharpe Ratio
+                excess_returns = returns.mean() * 252  # Annualized return
+                metrics['Sharpe'] = excess_returns / metrics['Volatility'] if metrics['Volatility'] > 0 else 0
+
+                # Sortino Ratio (downside deviation)
+                negative_returns = returns[returns < 0]
+                downside_std = negative_returns.std() * np.sqrt(252) if len(negative_returns) > 0 else metrics['Volatility']
+                metrics['Sortino'] = excess_returns / downside_std if downside_std > 0 else 0
+
+                # Max Drawdown
+                cumulative_returns = (1 + returns).cumprod()
+                running_max = cumulative_returns.expanding().max()
+                drawdown = (cumulative_returns - running_max) / running_max
+                metrics['Max_Drawdown'] = abs(drawdown.min())
+
+                # Calmar Ratio
+                metrics['Calmar'] = metrics['CAGR'] / metrics['Max_Drawdown'] if metrics['Max_Drawdown'] > 0 else 0
+
+                # Win Rate
+                winning_trades = len(returns[returns > 0])
+                total_trades = len(returns)
+                metrics['Win_Rate'] = winning_trades / total_trades if total_trades > 0 else 0
+
+                # Profit Factor
+                gross_profits = returns[returns > 0].sum()
+                gross_losses = abs(returns[returns < 0].sum())
+                metrics['Profit_Factor'] = gross_profits / gross_losses if gross_losses > 0 else 0
+
+                # VaR et autres métriques
+                metrics['VaR'] = np.percentile(returns, 5)
+                var_threshold = metrics['VaR']
+                tail_losses = returns[returns <= var_threshold]
+                metrics['CVaR'] = tail_losses.mean() if len(tail_losses) > 0 else metrics['VaR']
+
+                try:
+                    from scipy import stats as scipy_stats
+                    metrics['Skewness'] = scipy_stats.skew(returns)
+                    metrics['Kurtosis'] = scipy_stats.kurtosis(returns)
+                except:
+                    metrics['Skewness'] = 0
+                    metrics['Kurtosis'] = 0
+
+                metrics['Recovery_Factor'] = total_return / metrics['Max_Drawdown'] if metrics['Max_Drawdown'] > 0 else 0
+
+                threshold = 0
+                gains = returns[returns > threshold].sum()
+                losses = abs(returns[returns <= threshold].sum())
+                metrics['Omega_Ratio'] = gains / losses if losses > 0 else 0
+
+            # Métrique personnalisée R/R (toujours calculée)
             metrics['RR_Ratio_Avg'] = self.calculate_rr_ratio()
 
         except Exception as e:
             st.warning(f"Erreur calcul métriques: {e}")
             # Métriques par défaut en cas d'erreur
             metrics = {key: 0.0 for key in ['CAGR', 'Sharpe', 'Sortino', 'Max_Drawdown',
-                      'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg']}
+                      'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg', 'Volatility', 'Calmar',
+                      'VaR', 'CVaR', 'Skewness', 'Kurtosis', 'Recovery_Factor', 'Omega_Ratio']}
 
         return metrics
 
@@ -174,10 +246,17 @@ class BacktestAnalyzerPro:
 
     def create_drawdown_plot(self):
         """
-        Graphique des drawdowns
+        Graphique des drawdowns (avec QuantStats si disponible)
         """
         try:
-            drawdown = qs.stats.to_drawdown_series(self.returns)
+            if QUANTSTATS_AVAILABLE:
+                # Utiliser QuantStats pour les drawdowns
+                drawdown = qs.stats.to_drawdown_series(self.returns)
+            else:
+                # Calculer les drawdowns manuellement
+                cumulative_returns = (1 + self.returns).cumprod()
+                running_max = cumulative_returns.expanding().max()
+                drawdown = (cumulative_returns - running_max) / running_max
 
             fig = go.Figure()
             fig.add_trace(go.Scatter(
@@ -210,17 +289,27 @@ class BacktestAnalyzerPro:
 
     def create_monthly_heatmap(self):
         """
-        Heatmap des rendements mensuels
+        Heatmap des rendements mensuels (sans QuantStats)
         """
         try:
-            monthly_rets = qs.utils.group_returns(self.returns, groupby='M') * 100
+            # Calculer les rendements mensuels manuellement
+            monthly_returns = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
 
-            # Restructurer pour heatmap
-            heatmap_data = monthly_rets.unstack().fillna(0)
+            # Créer une matrice année/mois
+            monthly_df = monthly_returns.to_frame('returns')
+            monthly_df['year'] = monthly_df.index.year
+            monthly_df['month'] = monthly_df.index.month
+
+            # Pivot pour créer la heatmap
+            heatmap_data = monthly_df.pivot(index='year', columns='month', values='returns').fillna(0) * 100
+
+            # Créer des labels pour les mois
+            month_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
             fig = go.Figure(data=go.Heatmap(
                 z=heatmap_data.values,
-                x=[f'{month:02d}' for month in heatmap_data.columns],
+                x=[month_labels[i-1] if i-1 < len(month_labels) else f'{i:02d}' for i in heatmap_data.columns],
                 y=heatmap_data.index,
                 colorscale='RdYlGn',
                 zmid=0,
