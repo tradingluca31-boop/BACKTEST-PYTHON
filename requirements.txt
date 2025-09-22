@@ -1,8 +1,9 @@
-pandas
-numpy
-quantstats
-plotly
-streamlit
-yfinance
-scipy
-matplotlib
+streamlit>=1.28.0
+pandas>=1.5.0
+numpy>=1.24.0
+quantstats>=0.0.62
+plotly>=5.15.0
+yfinance>=0.2.18
+scipy>=1.10.0
+matplotlib>=3.7.0
+openpyxl>=3.1.0
