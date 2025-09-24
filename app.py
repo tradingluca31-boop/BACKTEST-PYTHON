@@ -152,13 +152,15 @@ class BacktestAnalyzerPro:
         self.custom_metrics['RR_Ratio'] = rr_ratio
         return rr_ratio
 
-    def calculate_all_metrics(self, target_dd=None, target_profit=None):
+    def calculate_all_metrics(self, target_dd=None, target_profit=None, initial_capital=10000, target_profit_euro=None):
         """
         Calculer toutes les métriques avec QuantStats (si disponible) ou implémentation custom
 
         Args:
             target_dd: Drawdown target personnalisé (décimal, ex: 0.10 pour 10%)
             target_profit: Profit target annuel personnalisé (décimal, ex: 0.20 pour 20%)
+            initial_capital: Capital initial en euros
+            target_profit_euro: Profit target en euros
         """
         metrics = {}
 
@@ -255,17 +257,21 @@ class BacktestAnalyzerPro:
                 metrics['DD_Marge'] = (target_dd - actual_dd) / target_dd if target_dd > 0 else 0
                 metrics['DD_Score'] = min(100, (target_dd - actual_dd) / target_dd * 100) if target_dd > 0 else 0
 
-            if target_profit is not None:
+            if target_profit is not None and target_profit_euro is not None:
                 actual_cagr = metrics.get('CAGR', 0)
+                actual_profit_euro = actual_cagr * initial_capital
+
                 metrics['Profit_Target'] = target_profit
-                metrics['Profit_Atteint'] = "✅ Atteint" if actual_cagr >= target_profit else "❌ Non atteint"
-                metrics['Profit_Ratio'] = actual_cagr / target_profit if target_profit > 0 else 0
-                metrics['Profit_Score'] = min(100, actual_cagr / target_profit * 100) if target_profit > 0 else 0
+                metrics['Profit_Target_Euro'] = target_profit_euro
+                metrics['Profit_Actual_Euro'] = actual_profit_euro
+                metrics['Profit_Atteint'] = "✅ Atteint" if actual_profit_euro >= target_profit_euro else "❌ Non atteint"
+                metrics['Profit_Ratio'] = actual_profit_euro / target_profit_euro if target_profit_euro > 0 else 0
+                metrics['Profit_Score'] = min(100, actual_profit_euro / target_profit_euro * 100) if target_profit_euro > 0 else 0
 
             # Métriques combinées si les deux targets sont définis
-            if target_dd is not None and target_profit is not None:
+            if target_dd is not None and target_profit is not None and target_profit_euro is not None:
                 dd_ok = metrics.get('Max_Drawdown', 0) <= target_dd
-                profit_ok = metrics.get('CAGR', 0) >= target_profit
+                profit_ok = metrics.get('Profit_Actual_Euro', 0) >= target_profit_euro
 
                 if dd_ok and profit_ok:
                     metrics['Strategy_Status'] = "🎯 EXCELLENT"
@@ -649,14 +655,19 @@ def main():
         else:
             target_dd = None
 
+        # Capital initial
+        st.markdown("**Capital Initial**")
+        initial_capital = st.number_input("Capital de départ (€)", min_value=100, max_value=10000000, value=10000, step=1000)
+
         # Section Profit personnalisé
         st.markdown("**Profit Target**")
         custom_profit_enabled = st.checkbox("Utiliser Profit personnalisé", value=False)
         if custom_profit_enabled:
-            target_profit = st.slider("Profit Target Annual (%)", 5.0, 200.0, 20.0, 1.0)
-            target_profit = target_profit / 100  # Convertir en décimal
+            target_profit_euro = st.number_input("Profit Target Annuel (€)", min_value=100, max_value=1000000, value=2000, step=100)
+            target_profit = target_profit_euro / initial_capital  # Convertir en ratio
         else:
             target_profit = None
+            target_profit_euro = None
 
         st.markdown("---")
         st.markdown("### Options d'affichage")
@@ -747,7 +758,7 @@ def main():
                     with st.spinner("Génération de l'analyse professionnelle..."):
 
                         # Calculer métriques
-                        metrics = analyzer.calculate_all_metrics(target_dd, target_profit)
+                        metrics = analyzer.calculate_all_metrics(target_dd, target_profit, initial_capital, target_profit_euro)
 
                         # Afficher métriques clés en cartes stylées
                         st.markdown("## 📈 Métriques Principales")
@@ -802,10 +813,10 @@ def main():
                             st.metric("Volatilité", f"{metrics.get('Volatility', 0):.2%}")
 
                         # Affichage des métriques personnalisées si définies
-                        if target_dd is not None or target_profit is not None:
+                        if target_dd is not None or (target_profit is not None and target_profit_euro is not None):
                             st.markdown("## 🎯 Analyse Personnalisée")
 
-                            if target_dd is not None and target_profit is not None:
+                            if target_dd is not None and target_profit is not None and target_profit_euro is not None:
                                 # Affichage du statut global avec style
                                 strategy_status = metrics.get('Strategy_Status', 'N/A')
                                 global_score = metrics.get('Global_Score', 0)
@@ -849,24 +860,29 @@ def main():
                                     st.metric("Score DD", f"{dd_score:.1f}/100")
 
                             with col2:
-                                if target_profit is not None:
-                                    st.markdown("### 📈 Analyse Profit")
+                                if target_profit is not None and target_profit_euro is not None:
+                                    st.markdown("### 💰 Analyse Profit (€)")
                                     profit_atteint = metrics.get('Profit_Atteint', 'N/A')
                                     profit_score = metrics.get('Profit_Score', 0)
                                     profit_ratio = metrics.get('Profit_Ratio', 0)
+                                    actual_profit_euro = metrics.get('Profit_Actual_Euro', 0)
 
                                     st.metric(
                                         "Target Profit",
-                                        f"{target_profit:.1%}",
-                                        help="Rendement annuel cible défini"
+                                        f"{target_profit_euro:,.0f}€",
+                                        help="Profit annuel cible en euros"
                                     )
                                     st.metric(
-                                        "CAGR Réalisé",
-                                        f"{metrics.get('CAGR', 0):.2%}",
-                                        delta=f"{(profit_ratio-1)*100:+.1f}%" if profit_ratio != 0 else None
+                                        "Profit Réalisé",
+                                        f"{actual_profit_euro:,.0f}€",
+                                        delta=f"{actual_profit_euro - target_profit_euro:+,.0f}€" if target_profit_euro != 0 else None
                                     )
                                     st.metric("Statut Profit", profit_atteint)
                                     st.metric("Score Profit", f"{profit_score:.1f}/100")
+
+                                    # Affichage additionnel du CAGR pour référence
+                                    st.caption(f"📊 CAGR équivalent: {metrics.get('CAGR', 0):.2%}")
+                                    st.caption(f"💼 Capital initial: {initial_capital:,.0f}€")
 
                         if show_charts:
                             # Graphiques
