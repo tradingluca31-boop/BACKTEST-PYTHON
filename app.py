@@ -678,15 +678,6 @@ def main():
                         html_report = analyzer.generate_downloadable_report(metrics)
 
                         if html_report:
-                            st.markdown("## 📥 Téléchargement")
-                            st.download_button(
-                                "📥 TÉLÉCHARGER RAPPORT HTML PROFESSIONNEL",
-                                data=html_report,
-                                file_name=f"backtest_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
-                                mime="text/html",
-                                type="primary"
-                            )
-
                             # Export CSV des métriques
                             csv_data = pd.DataFrame([metrics]).T.reset_index()
                             csv_data.columns = ['Métrique', 'Valeur']
@@ -694,7 +685,7 @@ def main():
                             # Créer les différents formats d'export
                             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-                            st.markdown("### Options de telechargement")
+                            st.markdown("## Options de telechargement")
 
                             col1, col2, col3 = st.columns(3)
 
@@ -704,7 +695,7 @@ def main():
                                     data=csv_data.to_csv(index=False),
                                     file_name=f"metrics_{timestamp}.csv",
                                     mime="text/csv",
-                                    type="secondary"
+                                    type="primary"
                                 )
 
                             with col2:
@@ -720,7 +711,7 @@ def main():
                                         data=excel_data,
                                         file_name=f"metrics_{timestamp}.xlsx",
                                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                        type="secondary"
+                                        type="primary"
                                     )
                                 except Exception as e:
                                     st.button("Excel Error", disabled=True)
@@ -732,7 +723,7 @@ def main():
                                     data=html_report,
                                     file_name=f"report_IE_{timestamp}.html",
                                     mime="text/html",
-                                    type="secondary"
+                                    type="primary"
                                 )
 
         except Exception as e:
