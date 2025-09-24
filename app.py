@@ -694,53 +694,45 @@ def main():
                             # Créer les différents formats d'export
                             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
+                            st.markdown("### 📥 Options de téléchargement")
+
                             col1, col2, col3 = st.columns(3)
 
                             with col1:
                                 st.download_button(
-                                    "📊 TÉLÉCHARGER MÉTRIQUES CSV",
+                                    "📊 CSV Métriques",
                                     data=csv_data.to_csv(index=False),
                                     file_name=f"metrics_{timestamp}.csv",
-                                    mime="text/csv"
+                                    mime="text/csv",
+                                    type="secondary"
                                 )
 
                             with col2:
-                                # Export Excel XML (MS Office Excel 2007)
+                                # Export Excel XML (MS Office Excel 2007) - Simplifié
+                                excel_data = None
                                 try:
-                                    # Créer un buffer pour l'Excel
                                     excel_buffer = io.BytesIO()
-                                    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                                        # Feuille métriques
-                                        csv_data.to_excel(writer, sheet_name='Métriques', index=False)
-
-                                        # Feuille données brutes si disponible
-                                        if analyzer.returns is not None:
-                                            returns_df = analyzer.returns.to_frame('Returns')
-                                            returns_df.to_excel(writer, sheet_name='Returns')
-
-                                        # Feuille equity curve
-                                        if analyzer.equity_curve is not None:
-                                            equity_df = analyzer.equity_curve.to_frame('Equity')
-                                            equity_df.to_excel(writer, sheet_name='Equity_Curve')
-
+                                    csv_data.to_excel(excel_buffer, index=False, engine='openpyxl')
                                     excel_data = excel_buffer.getvalue()
 
                                     st.download_button(
-                                        "📈 OUVRIR XML (MS Office Excel 2007)",
+                                        "📈 Excel XML (MS Office)",
                                         data=excel_data,
-                                        file_name=f"backtest_analysis_{timestamp}.xlsx",
-                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                        file_name=f"metrics_{timestamp}.xlsx",
+                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                        type="secondary"
                                     )
                                 except Exception as e:
-                                    st.error(f"Erreur génération Excel: {e}")
+                                    st.button("❌ Excel Error", disabled=True)
+                                    st.caption(f"Erreur: {str(e)[:50]}...")
 
                             with col3:
-                                # Export HTML (Internet Explorer)
                                 st.download_button(
                                     "🌐 HTML (Internet Explorer)",
                                     data=html_report,
-                                    file_name=f"backtest_report_IE_{timestamp}.html",
-                                    mime="text/html"
+                                    file_name=f"report_IE_{timestamp}.html",
+                                    mime="text/html",
+                                    type="secondary"
                                 )
 
         except Exception as e:
