@@ -152,9 +152,13 @@ class BacktestAnalyzerPro:
         self.custom_metrics['RR_Ratio'] = rr_ratio
         return rr_ratio
 
-    def calculate_all_metrics(self):
+    def calculate_all_metrics(self, target_dd=None, target_profit=None):
         """
         Calculer toutes les métriques avec QuantStats (si disponible) ou implémentation custom
+
+        Args:
+            target_dd: Drawdown target personnalisé (décimal, ex: 0.10 pour 10%)
+            target_profit: Profit target annuel personnalisé (décimal, ex: 0.20 pour 20%)
         """
         metrics = {}
 
@@ -242,6 +246,40 @@ class BacktestAnalyzerPro:
 
             # Métrique personnalisée R/R (toujours calculée)
             metrics['RR_Ratio_Avg'] = self.calculate_rr_ratio()
+
+            # Métriques personnalisées selon les targets
+            if target_dd is not None:
+                actual_dd = metrics.get('Max_Drawdown', 0)
+                metrics['DD_Target'] = target_dd
+                metrics['DD_Respect'] = "✅ Respecté" if actual_dd <= target_dd else "❌ Dépassé"
+                metrics['DD_Marge'] = (target_dd - actual_dd) / target_dd if target_dd > 0 else 0
+                metrics['DD_Score'] = min(100, (target_dd - actual_dd) / target_dd * 100) if target_dd > 0 else 0
+
+            if target_profit is not None:
+                actual_cagr = metrics.get('CAGR', 0)
+                metrics['Profit_Target'] = target_profit
+                metrics['Profit_Atteint'] = "✅ Atteint" if actual_cagr >= target_profit else "❌ Non atteint"
+                metrics['Profit_Ratio'] = actual_cagr / target_profit if target_profit > 0 else 0
+                metrics['Profit_Score'] = min(100, actual_cagr / target_profit * 100) if target_profit > 0 else 0
+
+            # Métriques combinées si les deux targets sont définis
+            if target_dd is not None and target_profit is not None:
+                dd_ok = metrics.get('Max_Drawdown', 0) <= target_dd
+                profit_ok = metrics.get('CAGR', 0) >= target_profit
+
+                if dd_ok and profit_ok:
+                    metrics['Strategy_Status'] = "🎯 EXCELLENT"
+                elif profit_ok:
+                    metrics['Strategy_Status'] = "📈 PROFITABLE (DD élevé)"
+                elif dd_ok:
+                    metrics['Strategy_Status'] = "🛡️ CONSERVATEUR (Profit faible)"
+                else:
+                    metrics['Strategy_Status'] = "⚠️ À AMÉLIORER"
+
+                # Score global
+                dd_score = metrics.get('DD_Score', 0)
+                profit_score = metrics.get('Profit_Score', 0)
+                metrics['Global_Score'] = (dd_score + profit_score) / 2
 
         except Exception as e:
             st.warning(f"Erreur calcul métriques: {e}")
@@ -600,6 +638,27 @@ def main():
         )
 
         st.markdown("---")
+        st.markdown("### 🎯 Personnalisation Trading")
+
+        # Section Drawdown personnalisé
+        st.markdown("**Drawdown Target**")
+        custom_dd_enabled = st.checkbox("Utiliser DD personnalisé", value=False)
+        if custom_dd_enabled:
+            target_dd = st.slider("Max Drawdown Target (%)", 1.0, 50.0, 10.0, 0.5)
+            target_dd = target_dd / 100  # Convertir en décimal
+        else:
+            target_dd = None
+
+        # Section Profit personnalisé
+        st.markdown("**Profit Target**")
+        custom_profit_enabled = st.checkbox("Utiliser Profit personnalisé", value=False)
+        if custom_profit_enabled:
+            target_profit = st.slider("Profit Target Annual (%)", 5.0, 200.0, 20.0, 1.0)
+            target_profit = target_profit / 100  # Convertir en décimal
+        else:
+            target_profit = None
+
+        st.markdown("---")
         st.markdown("### Options d'affichage")
         show_charts = st.checkbox("Afficher tous les graphiques", value=True)
         show_advanced = st.checkbox("Métriques avancées", value=True)
@@ -688,7 +747,7 @@ def main():
                     with st.spinner("Génération de l'analyse professionnelle..."):
 
                         # Calculer métriques
-                        metrics = analyzer.calculate_all_metrics()
+                        metrics = analyzer.calculate_all_metrics(target_dd, target_profit)
 
                         # Afficher métriques clés en cartes stylées
                         st.markdown("## 📈 Métriques Principales")
@@ -741,6 +800,73 @@ def main():
 
                         with col4:
                             st.metric("Volatilité", f"{metrics.get('Volatility', 0):.2%}")
+
+                        # Affichage des métriques personnalisées si définies
+                        if target_dd is not None or target_profit is not None:
+                            st.markdown("## 🎯 Analyse Personnalisée")
+
+                            if target_dd is not None and target_profit is not None:
+                                # Affichage du statut global avec style
+                                strategy_status = metrics.get('Strategy_Status', 'N/A')
+                                global_score = metrics.get('Global_Score', 0)
+
+                                if global_score >= 80:
+                                    status_color = "success"
+                                elif global_score >= 60:
+                                    status_color = "warning"
+                                else:
+                                    status_color = "error"
+
+                                st.markdown(f"""
+                                <div style="text-align: center; padding: 20px; border-radius: 10px;
+                                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin: 20px 0;">
+                                    <h2 style="margin: 0;">{strategy_status}</h2>
+                                    <h3 style="margin: 10px 0;">Score Global: {global_score:.1f}/100</h3>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            # Métriques détaillées en colonnes
+                            col1, col2 = st.columns(2)
+
+                            with col1:
+                                if target_dd is not None:
+                                    st.markdown("### 🛡️ Analyse Drawdown")
+                                    dd_respect = metrics.get('DD_Respect', 'N/A')
+                                    dd_score = metrics.get('DD_Score', 0)
+                                    dd_marge = metrics.get('DD_Marge', 0)
+
+                                    st.metric(
+                                        "Target DD",
+                                        f"{target_dd:.1%}",
+                                        help="Drawdown maximum acceptable défini"
+                                    )
+                                    st.metric(
+                                        "DD Réalisé",
+                                        f"{metrics.get('Max_Drawdown', 0):.2%}",
+                                        delta=f"{dd_marge:.1%}" if dd_marge != 0 else None
+                                    )
+                                    st.metric("Statut DD", dd_respect)
+                                    st.metric("Score DD", f"{dd_score:.1f}/100")
+
+                            with col2:
+                                if target_profit is not None:
+                                    st.markdown("### 📈 Analyse Profit")
+                                    profit_atteint = metrics.get('Profit_Atteint', 'N/A')
+                                    profit_score = metrics.get('Profit_Score', 0)
+                                    profit_ratio = metrics.get('Profit_Ratio', 0)
+
+                                    st.metric(
+                                        "Target Profit",
+                                        f"{target_profit:.1%}",
+                                        help="Rendement annuel cible défini"
+                                    )
+                                    st.metric(
+                                        "CAGR Réalisé",
+                                        f"{metrics.get('CAGR', 0):.2%}",
+                                        delta=f"{(profit_ratio-1)*100:+.1f}%" if profit_ratio != 0 else None
+                                    )
+                                    st.metric("Statut Profit", profit_atteint)
+                                    st.metric("Score Profit", f"{profit_score:.1f}/100")
 
                         if show_charts:
                             # Graphiques
