@@ -152,13 +152,36 @@ class BacktestAnalyzerPro:
                 rr_ratio = 0
         else:
             # Calcul précis avec données de trades
-            wins = self.trades_data[self.trades_data['PnL'] > 0]['PnL']
-            losses = abs(self.trades_data[self.trades_data['PnL'] < 0]['PnL'])
+            try:
+                # Essayer de trouver la colonne de profits (PnL, profit, etc.)
+                profit_col = None
+                for col in self.trades_data.columns:
+                    if col.lower() in ['pnl', 'profit', 'p&l', 'pl']:
+                        profit_col = col
+                        break
 
-            if len(losses) > 0 and len(wins) > 0:
-                rr_ratio = wins.mean() / losses.mean()
-            else:
-                rr_ratio = 0
+                if profit_col is not None:
+                    wins = self.trades_data[self.trades_data[profit_col] > 0][profit_col]
+                    losses = abs(self.trades_data[self.trades_data[profit_col] < 0][profit_col])
+
+                    if len(losses) > 0 and len(wins) > 0:
+                        rr_ratio = wins.mean() / losses.mean()
+                    else:
+                        rr_ratio = 0
+                else:
+                    # Fallback si pas de colonne trouvée
+                    rr_ratio = 0
+            except Exception:
+                # En cas d'erreur, utiliser les returns
+                positive_returns = self.returns[self.returns > 0]
+                negative_returns = self.returns[self.returns < 0]
+
+                if len(negative_returns) > 0 and len(positive_returns) > 0:
+                    avg_win = positive_returns.mean()
+                    avg_loss = abs(negative_returns.mean())
+                    rr_ratio = avg_win / avg_loss
+                else:
+                    rr_ratio = 0
 
         self.custom_metrics['RR_Ratio'] = rr_ratio
         return rr_ratio
@@ -177,22 +200,40 @@ class BacktestAnalyzerPro:
         metrics = {}
 
         try:
+            # Vérifier que nous avons des returns valides
+            if self.returns is None or len(self.returns) == 0:
+                st.warning("⚠️ Aucun return calculé - vérifiez vos données")
+                return {key: 0.0 for key in ['CAGR', 'Sharpe', 'Sortino', 'Max_Drawdown',
+                          'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg', 'Volatility']}
+
+            # Nettoyer les returns
+            returns = self.returns.dropna()
+            if len(returns) == 0:
+                st.warning("⚠️ Tous les returns sont NaN - vérifiez vos données")
+                return {key: 0.0 for key in ['CAGR', 'Sharpe', 'Sortino', 'Max_Drawdown',
+                          'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg', 'Volatility']}
+
             if QUANTSTATS_AVAILABLE:
-                # Utiliser QuantStats si disponible
-                metrics['CAGR'] = qs.stats.cagr(self.returns)
-                metrics['Sharpe'] = qs.stats.sharpe(self.returns)
-                metrics['Sortino'] = qs.stats.sortino(self.returns)
-                metrics['Calmar'] = qs.stats.calmar(self.returns)
-                metrics['Max_Drawdown'] = qs.stats.max_drawdown(self.returns)
-                metrics['Volatility'] = qs.stats.volatility(self.returns)
-                metrics['VaR'] = qs.stats.var(self.returns)
-                metrics['CVaR'] = qs.stats.cvar(self.returns)
-                metrics['Win_Rate'] = qs.stats.win_rate(self.returns)
-                metrics['Profit_Factor'] = qs.stats.profit_factor(self.returns)
-                metrics['Omega_Ratio'] = qs.stats.omega(self.returns)
-                metrics['Recovery_Factor'] = qs.stats.recovery_factor(self.returns)
-                metrics['Skewness'] = qs.stats.skew(self.returns)
-                metrics['Kurtosis'] = qs.stats.kurtosis(self.returns)
+                try:
+                    # Utiliser QuantStats si disponible
+                    metrics['CAGR'] = qs.stats.cagr(returns)
+                    metrics['Sharpe'] = qs.stats.sharpe(returns)
+                    metrics['Sortino'] = qs.stats.sortino(returns)
+                    metrics['Calmar'] = qs.stats.calmar(returns)
+                    metrics['Max_Drawdown'] = qs.stats.max_drawdown(returns)
+                    metrics['Volatility'] = qs.stats.volatility(returns)
+                    metrics['VaR'] = qs.stats.var(returns)
+                    metrics['CVaR'] = qs.stats.cvar(returns)
+                    metrics['Win_Rate'] = qs.stats.win_rate(returns)
+                    metrics['Profit_Factor'] = qs.stats.profit_factor(returns)
+                    metrics['Omega_Ratio'] = qs.stats.omega(returns)
+                    metrics['Recovery_Factor'] = qs.stats.recovery_factor(returns)
+                    metrics['Skewness'] = qs.stats.skew(returns)
+                    metrics['Kurtosis'] = qs.stats.kurtosis(returns)
+                except Exception as e:
+                    st.warning(f"Erreur QuantStats: {e} - Utilisation fallback")
+                    # Forcer l'utilisation du fallback
+                    raise Exception("QuantStats failed")
             else:
                 # Implémentation custom fallback
                 returns = self.returns.dropna()
