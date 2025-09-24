@@ -97,23 +97,26 @@ class BacktestAnalyzerPro:
             else:
                 raise ValueError("Format de données non supporté")
 
+            # Prendre la première colonne si DataFrame avec plusieurs colonnes
+            if len(df.columns) > 1:
+                data_series = df.iloc[:, 0]  # Première colonne
+            else:
+                data_series = df.squeeze()
+
+            # S'assurer que c'est numérique
+            data_series = pd.to_numeric(data_series, errors='coerce').dropna()
+
             if data_type == 'returns':
-                self.returns = df.squeeze()
-                # S'assurer que les returns sont numériques
-                self.returns = pd.to_numeric(self.returns, errors='coerce').dropna()
+                self.returns = data_series
             elif data_type == 'equity':
-                self.equity_curve = df.squeeze()
-                # S'assurer que l'equity est numérique
-                self.equity_curve = pd.to_numeric(self.equity_curve, errors='coerce').dropna()
+                self.equity_curve = data_series
                 # Calculer les returns depuis equity curve
                 self.returns = self.equity_curve.pct_change().dropna()
             elif data_type == 'trades':
                 self.trades_data = df
                 # Si trades, créer des returns à partir des P&L
-                pnl = df.squeeze()
-                pnl = pd.to_numeric(pnl, errors='coerce').dropna()
                 # Simuler des returns basés sur les trades
-                self.returns = pnl / 10000  # Normaliser (assume capital de 10k)
+                self.returns = data_series / 10000  # Normaliser (assume capital de 10k)
 
             return True
 
