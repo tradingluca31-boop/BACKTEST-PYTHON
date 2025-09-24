@@ -660,11 +660,19 @@ def main():
 
                     # Debug des valeurs
                     if data_type == 'returns':
-                        st.write(f"**Returns stats:** Min={df.iloc[:,0].min():.6f}, Max={df.iloc[:,0].max():.6f}, Mean={df.iloc[:,0].mean():.6f}")
+                        min_val = df.iloc[:,0].min()
+                        max_val = df.iloc[:,0].max()
+                        mean_val = df.iloc[:,0].mean()
+                        st.write(f"**Returns stats:** Min={min_val:.6f}, Max={max_val:.6f}, Mean={mean_val:.6f}")
                     elif data_type == 'equity':
                         returns = df.iloc[:,0].pct_change().dropna()
-                        st.write(f"**Equity stats:** Min={df.iloc[:,0].min():.2f}, Max={df.iloc[:,0].max():.2f}")
-                        st.write(f"**Returns from equity:** Min={returns.min():.6f}, Max={returns.max():.6f}, Mean={returns.mean():.6f}")
+                        min_val = df.iloc[:,0].min()
+                        max_val = df.iloc[:,0].max()
+                        ret_min = returns.min()
+                        ret_max = returns.max()
+                        ret_mean = returns.mean()
+                        st.write(f"**Equity stats:** Min={min_val:.2f}, Max={max_val:.2f}")
+                        st.write(f"**Returns from equity:** Min={ret_min:.6f}, Max={ret_max:.6f}, Mean={ret_mean:.6f}")
 
                     # Auto-détection du type de données
                     col_values = df.iloc[:,0]
