@@ -56,17 +56,42 @@ class BacktestAnalyzerPro:
         self.benchmark = None
         self.custom_metrics = {}
 
-    def load_data(self, data_source, data_type='returns'):
+    def load_data(self, data_source, data_type='returns', file_extension=None):
         """
         Charger les données de backtest
 
         Args:
             data_source: DataFrame, CSV path ou données
             data_type: 'returns', 'equity' ou 'trades'
+            file_extension: Extension du fichier pour déterminer le format
         """
         try:
             if isinstance(data_source, str):
-                df = pd.read_csv(data_source, index_col=0, parse_dates=True)
+                # Fichier path
+                if file_extension and file_extension.lower() in ['.xlsx', '.xls']:
+                    df = pd.read_excel(data_source, index_col=0, parse_dates=True)
+                elif file_extension and file_extension.lower() == '.html':
+                    # Lire table HTML
+                    tables = pd.read_html(data_source)
+                    df = tables[0]  # Prendre la première table
+                    df = df.set_index(df.columns[0])
+                    df.index = pd.to_datetime(df.index)
+                else:
+                    df = pd.read_csv(data_source, index_col=0, parse_dates=True)
+            elif hasattr(data_source, 'name'):
+                # Uploaded file object
+                file_name = data_source.name.lower()
+                if file_name.endswith(('.xlsx', '.xls')):
+                    df = pd.read_excel(data_source, index_col=0, parse_dates=True)
+                elif file_name.endswith('.html'):
+                    # Lire table HTML depuis uploaded file
+                    content = data_source.read().decode('utf-8')
+                    tables = pd.read_html(content)
+                    df = tables[0]  # Prendre la première table
+                    df = df.set_index(df.columns[0])
+                    df.index = pd.to_datetime(df.index)
+                else:
+                    df = pd.read_csv(data_source, index_col=0, parse_dates=True)
             elif isinstance(data_source, pd.DataFrame):
                 df = data_source.copy()
             else:
@@ -551,9 +576,9 @@ def main():
 
         # Upload de fichiers
         uploaded_file = st.file_uploader(
-            "Upload CSV de backtest",
-            type=['csv'],
-            help="Format: Date (index) + Returns/Equity column"
+            "Upload fichier de backtest",
+            type=['csv', 'xlsx', 'xls', 'html'],
+            help="Formats supportés: CSV, Excel (xlsx/xls), HTML"
         )
 
         data_type = st.selectbox(
@@ -573,8 +598,20 @@ def main():
             # Initialiser l'analyseur
             analyzer = BacktestAnalyzerPro()
 
-            # Charger les données
-            df = pd.read_csv(uploaded_file, index_col=0, parse_dates=True)
+            # Charger les données selon le format
+            file_name = uploaded_file.name.lower()
+            if file_name.endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(uploaded_file, index_col=0, parse_dates=True)
+            elif file_name.endswith('.html'):
+                # Lire table HTML depuis uploaded file
+                content = uploaded_file.read().decode('utf-8')
+                tables = pd.read_html(content)
+                df = tables[0]  # Prendre la première table
+                df = df.set_index(df.columns[0])
+                df.index = pd.to_datetime(df.index)
+                uploaded_file.seek(0)  # Reset file pointer
+            else:
+                df = pd.read_csv(uploaded_file, index_col=0, parse_dates=True)
 
             if analyzer.load_data(df, data_type):
                 st.success("✅ Données chargées avec succès!")
@@ -736,7 +773,12 @@ def main():
         # Instructions détaillées
         with st.expander("ℹ️ Instructions d'utilisation"):
             st.markdown("""
-            ## 📋 Format CSV requis
+            ## 📋 Formats de fichiers supportés
+
+            **Formats acceptés:**
+            - **CSV** (.csv)
+            - **Excel** (.xlsx, .xls) - MS Office Excel 2007+
+            - **HTML** (.html) - Tables HTML
 
             **Structure du fichier:**
             - **Index:** Dates au format YYYY-MM-DD
@@ -767,6 +809,10 @@ def main():
             2023-01-02,-75
             2023-01-03,200
             ```
+
+            ### Notes pour formats spéciaux:
+            - **Excel**: Première feuille utilisée, dates en colonne A
+            - **HTML**: Première table trouvée dans le fichier
 
             ## 📊 Métriques calculées
 
