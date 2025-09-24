@@ -850,6 +850,8 @@ def main():
             # Charger les données selon le format
             file_name = uploaded_file.name.lower()
             try:
+                import pandas as pd  # Import pandas au début
+
                 if file_name.endswith(('.xlsx', '.xls')):
                     df = pd.read_excel(uploaded_file)
                 elif file_name.endswith('.html'):
