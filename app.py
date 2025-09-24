@@ -115,8 +115,19 @@ class BacktestAnalyzerPro:
             elif data_type == 'trades':
                 self.trades_data = df
                 # Si trades, créer des returns à partir des P&L
-                # Simuler des returns basés sur les trades
-                self.returns = data_series / 10000  # Normaliser (assume capital de 10k)
+                # Pour MT5, utiliser les profits directement comme equity curve
+                pnl_cumulative = data_series.cumsum()
+
+                # Créer une equity curve réaliste
+                initial_capital = 10000  # Capital initial par défaut
+                self.equity_curve = initial_capital + pnl_cumulative
+
+                # Calculer les returns depuis l'equity curve
+                self.returns = self.equity_curve.pct_change().dropna()
+
+                # Nettoyer les valeurs infinies/NaN
+                import numpy as np
+                self.returns = self.returns.replace([np.inf, -np.inf], np.nan).dropna()
 
             return True
 
@@ -191,12 +202,19 @@ class BacktestAnalyzerPro:
                                    'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg']}
 
                 # CAGR (Compound Annual Growth Rate)
-                total_return = (1 + returns).prod() - 1
-                years = len(returns) / 252  # Assuming 252 trading days per year
-                metrics['CAGR'] = (1 + total_return) ** (1/years) - 1 if years > 0 else 0
+                try:
+                    total_return = (1 + returns).prod() - 1
+                    years = len(returns) / 252  # Assuming 252 trading days per year
+                    if years > 0 and total_return > -1:
+                        metrics['CAGR'] = (1 + total_return) ** (1/years) - 1
+                    else:
+                        metrics['CAGR'] = 0
+                except:
+                    metrics['CAGR'] = 0
 
-                # Volatilité annualisée
-                metrics['Volatility'] = returns.std() * np.sqrt(252)
+                # Volatilité annualisée (avec protection contre valeurs extremes)
+                vol = returns.std() * np.sqrt(252)
+                metrics['Volatility'] = vol if vol < 100 else 0  # Limiter à 100% max
 
                 # Sharpe Ratio
                 excess_returns = returns.mean() * 252  # Annualized return
