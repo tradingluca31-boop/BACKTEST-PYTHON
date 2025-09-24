@@ -19,15 +19,22 @@ import warnings
 import io
 import base64
 
-# Patch pour éviter les problèmes IPython sur Streamlit Cloud
+# Patch complet pour IPython sur Streamlit Cloud
 import sys
 from unittest.mock import MagicMock
 
-# Mock IPython.display pour éviter les erreurs sur Streamlit Cloud
-sys.modules['IPython'] = MagicMock()
-sys.modules['IPython.display'] = MagicMock()
+# Mock complet d'IPython pour éviter toutes les erreurs
+class MockIPython:
+    def __getattr__(self, name):
+        return MagicMock()
 
-# Import QuantStats avec patch IPython
+# Mock tous les modules IPython
+sys.modules['IPython'] = MockIPython()
+sys.modules['IPython.core'] = MagicMock()
+sys.modules['IPython.display'] = MagicMock()
+sys.modules['IPython.core.display'] = MagicMock()
+
+# Import QuantStats avec patch IPython complet
 try:
     import quantstats as qs
     QUANTSTATS_AVAILABLE = True
