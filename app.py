@@ -99,12 +99,21 @@ class BacktestAnalyzerPro:
 
             if data_type == 'returns':
                 self.returns = df.squeeze()
+                # S'assurer que les returns sont numériques
+                self.returns = pd.to_numeric(self.returns, errors='coerce').dropna()
             elif data_type == 'equity':
                 self.equity_curve = df.squeeze()
+                # S'assurer que l'equity est numérique
+                self.equity_curve = pd.to_numeric(self.equity_curve, errors='coerce').dropna()
                 # Calculer les returns depuis equity curve
                 self.returns = self.equity_curve.pct_change().dropna()
             elif data_type == 'trades':
                 self.trades_data = df
+                # Si trades, créer des returns à partir des P&L
+                pnl = df.squeeze()
+                pnl = pd.to_numeric(pnl, errors='coerce').dropna()
+                # Simuler des returns basés sur les trades
+                self.returns = pnl / 10000  # Normaliser (assume capital de 10k)
 
             return True
 
@@ -638,12 +647,30 @@ def main():
                 with st.expander("👀 Aperçu des données"):
                     st.dataframe(df.head(10))
                     st.write(f"**Nombre de lignes:** {len(df)}")
+                    st.write(f"**Colonnes:** {list(df.columns)}")
                     try:
                         start_date = pd.to_datetime(df.index[0]).strftime('%Y-%m-%d')
                         end_date = pd.to_datetime(df.index[-1]).strftime('%Y-%m-%d')
                         st.write(f"**Période:** {start_date} à {end_date}")
                     except:
                         st.write(f"**Période:** {df.index[0]} à {df.index[-1]}")
+
+                    # Debug des valeurs
+                    if data_type == 'returns':
+                        st.write(f"**Returns stats:** Min={df.iloc[:,0].min():.6f}, Max={df.iloc[:,0].max():.6f}, Mean={df.iloc[:,0].mean():.6f}")
+                    elif data_type == 'equity':
+                        returns = df.iloc[:,0].pct_change().dropna()
+                        st.write(f"**Equity stats:** Min={df.iloc[:,0].min():.2f}, Max={df.iloc[:,0].max():.2f}")
+                        st.write(f"**Returns from equity:** Min={returns.min():.6f}, Max={returns.max():.6f}, Mean={returns.mean():.6f}")
+
+                    # Auto-détection du type de données
+                    col_values = df.iloc[:,0]
+                    if col_values.min() >= 0 and col_values.max() > 10:
+                        st.info("💡 **Auto-détection:** Vos données ressemblent à une **equity curve** (valeurs > 10). Essayez le type 'equity'")
+                    elif abs(col_values.min()) < 1 and abs(col_values.max()) < 1:
+                        st.info("💡 **Auto-détection:** Vos données ressemblent à des **returns** (valeurs entre -1 et 1). Le type 'returns' est bon")
+                    elif col_values.min() < 0 or col_values.max() > col_values.mean() * 2:
+                        st.info("💡 **Auto-détection:** Vos données ressemblent à des **trades** (P&L). Essayez le type 'trades'")
 
                 # Générer l'analyse
                 if st.button("🚀 GÉNÉRER L'ANALYSE COMPLÈTE", type="primary"):
