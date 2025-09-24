@@ -659,6 +659,151 @@ def main():
             help="returns: rendements quotidiens, equity: valeur portefeuille, trades: détail trades"
         )
 
+        # Tutoriel interactif pour les types de données
+        with st.expander("🎓 TUTORIEL - Comment choisir le type de données ?", expanded=False):
+            st.markdown("### 🔍 Guide de sélection du type de données")
+
+            # Tabs pour chaque type
+            tab1, tab2, tab3 = st.tabs(["📈 Returns", "💼 Equity", "🎯 Trades"])
+
+            with tab1:
+                st.markdown("""
+                #### 📈 **RETURNS (Rendements quotidiens)**
+
+                **✅ Utilisez ce type si vos données contiennent :**
+                - Rendements quotidiens exprimés en décimal (ex: 0.01 = 1%)
+                - Valeurs généralement entre -0.20 et +0.20 (-20% à +20%)
+                - Performance journalière de votre stratégie
+
+                **💡 Exemples de valeurs :**
+                ```
+                Date        returns
+                2024-01-01    0.0150   (gain de 1.5%)
+                2024-01-02   -0.0075   (perte de 0.75%)
+                2024-01-03    0.0220   (gain de 2.2%)
+                ```
+
+                **🎯 Parfait pour :**
+                - Stratégies de trading algorithmique
+                - Backtests MetaTrader, TradingView
+                - Données de performance journalière
+                """)
+
+                if st.button("📥 Télécharger exemple Returns"):
+                    import pandas as pd
+                    import numpy as np
+                    np.random.seed(42)
+                    dates = pd.date_range('2024-01-01', '2024-03-31', freq='D')
+                    returns = np.random.normal(0.001, 0.015, len(dates))
+                    df_example = pd.DataFrame({'returns': returns}, index=dates)
+                    st.download_button(
+                        "💾 Fichier exemple Returns",
+                        data=df_example.to_csv(),
+                        file_name="exemple_returns.csv",
+                        mime="text/csv"
+                    )
+
+            with tab2:
+                st.markdown("""
+                #### 💼 **EQUITY (Valeur du portefeuille)**
+
+                **✅ Utilisez ce type si vos données contiennent :**
+                - Valeur totale du portefeuille jour par jour
+                - Montants en euros/dollars (ex: 10000, 10150, 9925...)
+                - Évolution du capital au fil du temps
+
+                **💡 Exemples de valeurs :**
+                ```
+                Date        equity
+                2024-01-01  10000.00  (capital initial)
+                2024-01-02  10150.75  (gain de 150.75€)
+                2024-01-03  10075.25  (perte de 75.50€)
+                ```
+
+                **🎯 Parfait pour :**
+                - Exports de courtiers (Interactive Brokers, etc.)
+                - Suivi de compte de trading réel
+                - Courbes d'équité MT4/MT5
+
+                **⚡ L'app calculera automatiquement les returns !**
+                """)
+
+                if st.button("📥 Télécharger exemple Equity"):
+                    np.random.seed(42)
+                    dates = pd.date_range('2024-01-01', '2024-03-31', freq='D')
+                    returns = np.random.normal(0.001, 0.015, len(dates))
+                    equity = (1 + pd.Series(returns)).cumprod() * 10000
+                    df_example = pd.DataFrame({'equity': equity}, index=dates)
+                    st.download_button(
+                        "💾 Fichier exemple Equity",
+                        data=df_example.to_csv(),
+                        file_name="exemple_equity.csv",
+                        mime="text/csv"
+                    )
+
+            with tab3:
+                st.markdown("""
+                #### 🎯 **TRADES (Détail des trades)**
+
+                **✅ Utilisez ce type si vos données contiennent :**
+                - P&L de chaque trade individuel
+                - Profits/pertes en euros/dollars
+                - Historique trade par trade
+
+                **💡 Exemples de valeurs :**
+                ```
+                Date        PnL
+                2024-01-01  +125.50  (trade gagnant)
+                2024-01-02   -85.25  (trade perdant)
+                2024-01-03  +200.75  (trade gagnant)
+                ```
+
+                **🎯 Parfait pour :**
+                - Exports détaillés de trades
+                - Analysis trade par trade
+                - Calcul précis du R/R ratio
+
+                **⚡ L'app créera une equity curve à partir des trades !**
+                """)
+
+                if st.button("📥 Télécharger exemple Trades"):
+                    np.random.seed(42)
+                    dates = pd.date_range('2024-01-01', '2024-03-31', freq='D')[:30]
+                    trades_pnl = np.random.normal(15, 45, len(dates))
+                    df_example = pd.DataFrame({'PnL': trades_pnl}, index=dates)
+                    st.download_button(
+                        "💾 Fichier exemple Trades",
+                        data=df_example.to_csv(),
+                        file_name="exemple_trades.csv",
+                        mime="text/csv"
+                    )
+
+            # Guide de diagnostic
+            st.markdown("---")
+            st.markdown("### 🔬 **DIAGNOSTIC RAPIDE**")
+
+            diagnostic_col1, diagnostic_col2 = st.columns(2)
+
+            with diagnostic_col1:
+                st.markdown("""
+                **🟢 Vos valeurs sont entre -1 et +1 ?**
+                → Utilisez **RETURNS**
+
+                **🟢 Vos valeurs commencent autour de votre capital initial ?**
+                → Utilisez **EQUITY**
+                """)
+
+            with diagnostic_col2:
+                st.markdown("""
+                **🟢 Vos valeurs sont des gains/pertes par trade ?**
+                → Utilisez **TRADES**
+
+                **❓ Pas sûr ?**
+                → L'app fait de l'auto-détection en bas !
+                """)
+
+        st.markdown("---")
+
         st.markdown("---")
         st.markdown("### 🎯 Personnalisation Trading")
 
@@ -766,14 +911,93 @@ def main():
                         st.write(f"**Equity stats:** Min={min_val:.2f}, Max={max_val:.2f}")
                         st.write(f"**Returns from equity:** Min={ret_min:.6f}, Max={ret_max:.6f}, Mean={ret_mean:.6f}")
 
-                    # Auto-détection du type de données
+                    # Auto-détection avancée du type de données
                     col_values = df.iloc[:,0]
-                    if col_values.min() >= 0 and col_values.max() > 10:
-                        st.info("💡 **Auto-détection:** Vos données ressemblent à une **equity curve** (valeurs > 10). Essayez le type 'equity'")
-                    elif abs(col_values.min()) < 1 and abs(col_values.max()) < 1:
-                        st.info("💡 **Auto-détection:** Vos données ressemblent à des **returns** (valeurs entre -1 et 1). Le type 'returns' est bon")
-                    elif col_values.min() < 0 or col_values.max() > col_values.mean() * 2:
-                        st.info("💡 **Auto-détection:** Vos données ressemblent à des **trades** (P&L). Essayez le type 'trades'")
+                    min_val = col_values.min()
+                    max_val = col_values.max()
+                    mean_val = col_values.mean()
+                    std_val = col_values.std()
+
+                    st.markdown("### 🤖 Auto-détection Intelligence")
+
+                    # Analyse statistique
+                    detection_col1, detection_col2 = st.columns(2)
+
+                    with detection_col1:
+                        st.markdown("**📊 Statistiques de vos données:**")
+                        st.write(f"• Min: {min_val:.6f}")
+                        st.write(f"• Max: {max_val:.6f}")
+                        st.write(f"• Moyenne: {mean_val:.6f}")
+                        st.write(f"• Écart-type: {std_val:.6f}")
+
+                    with detection_col2:
+                        st.markdown("**🎯 Recommandation IA:**")
+
+                        # Logique d'auto-détection améliorée
+                        confidence = 0
+                        recommendation = ""
+                        reasons = []
+
+                        # Test pour RETURNS
+                        if abs(min_val) < 1 and abs(max_val) < 1 and abs(mean_val) < 0.1:
+                            confidence += 80
+                            recommendation = "RETURNS"
+                            reasons = [
+                                "✅ Valeurs entre -1 et +1",
+                                "✅ Moyenne proche de 0",
+                                "✅ Typique des rendements"
+                            ]
+
+                        # Test pour EQUITY
+                        elif min_val >= 0 and max_val > 100 and mean_val > 1000:
+                            confidence += 85
+                            recommendation = "EQUITY"
+                            reasons = [
+                                "✅ Toutes valeurs positives",
+                                "✅ Valeurs > 100 (capital)",
+                                "✅ Croissance progressive typique"
+                            ]
+
+                        # Test pour TRADES
+                        elif (min_val < 0 and max_val > abs(min_val) * 0.5) or (std_val > abs(mean_val) * 2):
+                            confidence += 75
+                            recommendation = "TRADES"
+                            reasons = [
+                                "✅ Mix gains/pertes",
+                                "✅ Volatilité élevée",
+                                "✅ Typique P&L trades"
+                            ]
+
+                        # Test alternatif pour EQUITY (valeurs moyennes)
+                        elif min_val > 1000 and max_val > min_val * 1.1:
+                            confidence += 70
+                            recommendation = "EQUITY"
+                            reasons = [
+                                "✅ Valeurs > 1000€",
+                                "✅ Progression positive",
+                                "✅ Semble être un capital"
+                            ]
+
+                        # Affichage de la recommandation
+                        if confidence >= 70:
+                            if recommendation == "RETURNS":
+                                st.success(f"🎯 **{recommendation}** ({confidence}% confiance)")
+                            elif recommendation == "EQUITY":
+                                st.success(f"💼 **{recommendation}** ({confidence}% confiance)")
+                            elif recommendation == "TRADES":
+                                st.success(f"🎯 **{recommendation}** ({confidence}% confiance)")
+
+                            for reason in reasons:
+                                st.write(reason)
+
+                            if recommendation.lower() != data_type:
+                                st.warning(f"⚠️ Vous avez sélectionné '{data_type}' mais l'IA recommande '{recommendation.lower()}'")
+                        else:
+                            st.info("🤔 **Détection incertaine** - Vérifiez le tutoriel ci-dessus")
+                            st.write("• Données ambiguës")
+                            st.write("• Consultez les exemples")
+
+                    st.markdown("---")
 
                 # Générer l'analyse
                 if st.button("🚀 GÉNÉRER L'ANALYSE COMPLÈTE", type="primary"):
@@ -1033,6 +1257,37 @@ def main():
 
     else:
         st.info("👆 Uploadez votre fichier CSV de backtest pour commencer l'analyse")
+
+        # Conseils rapides pour débuter
+        st.markdown("## 🚀 Conseils pour débuter rapidement")
+
+        quick_col1, quick_col2, quick_col3 = st.columns(3)
+
+        with quick_col1:
+            st.markdown("""
+            ### 💡 **Nouveau ?**
+            1. 📥 Téléchargez un exemple via le tutoriel
+            2. 🔄 Uploadez le fichier
+            3. ✅ Vérifiez l'auto-détection
+            4. 🚀 Lancez l'analyse !
+            """)
+
+        with quick_col2:
+            st.markdown("""
+            ### 🎯 **Problème courant**
+            - **Erreur de format ?** → Vérifiez le tutoriel
+            - **Mauvais type ?** → Utilisez l'auto-détection
+            - **Pas de données ?** → Index = dates obligatoire
+            """)
+
+        with quick_col3:
+            st.markdown("""
+            ### 🔧 **Sources compatibles**
+            - MetaTrader 4/5
+            - TradingView
+            - Interactive Brokers
+            - Fichiers Excel manuels
+            """)
 
         # Instructions détaillées
         with st.expander("ℹ️ Instructions d'utilisation"):
