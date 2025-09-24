@@ -600,18 +600,36 @@ def main():
 
             # Charger les données selon le format
             file_name = uploaded_file.name.lower()
-            if file_name.endswith(('.xlsx', '.xls')):
-                df = pd.read_excel(uploaded_file, index_col=0, parse_dates=True)
-            elif file_name.endswith('.html'):
-                # Lire table HTML depuis uploaded file
-                content = uploaded_file.read().decode('utf-8')
-                tables = pd.read_html(content)
-                df = tables[0]  # Prendre la première table
-                df = df.set_index(df.columns[0])
-                df.index = pd.to_datetime(df.index)
-                uploaded_file.seek(0)  # Reset file pointer
-            else:
-                df = pd.read_csv(uploaded_file, index_col=0, parse_dates=True)
+            try:
+                if file_name.endswith(('.xlsx', '.xls')):
+                    df = pd.read_excel(uploaded_file, index_col=0)
+                    # Essayer de parser les dates de l'index
+                    try:
+                        df.index = pd.to_datetime(df.index)
+                    except:
+                        pass
+                elif file_name.endswith('.html'):
+                    # Lire table HTML depuis uploaded file
+                    content = uploaded_file.read().decode('utf-8')
+                    tables = pd.read_html(content)
+                    df = tables[0]  # Prendre la première table
+                    df = df.set_index(df.columns[0])
+                    try:
+                        df.index = pd.to_datetime(df.index)
+                    except:
+                        pass
+                    uploaded_file.seek(0)  # Reset file pointer
+                else:
+                    df = pd.read_csv(uploaded_file, index_col=0)
+                    # Essayer de parser les dates de l'index
+                    try:
+                        df.index = pd.to_datetime(df.index)
+                    except:
+                        pass
+
+            except Exception as e:
+                st.error(f"Erreur lecture fichier: {e}")
+                st.stop()
 
             if analyzer.load_data(df, data_type):
                 st.success("✅ Données chargées avec succès!")
@@ -620,7 +638,12 @@ def main():
                 with st.expander("👀 Aperçu des données"):
                     st.dataframe(df.head(10))
                     st.write(f"**Nombre de lignes:** {len(df)}")
-                    st.write(f"**Période:** {df.index[0].strftime('%Y-%m-%d')} à {df.index[-1].strftime('%Y-%m-%d')}")
+                    try:
+                        start_date = pd.to_datetime(df.index[0]).strftime('%Y-%m-%d')
+                        end_date = pd.to_datetime(df.index[-1]).strftime('%Y-%m-%d')
+                        st.write(f"**Période:** {start_date} à {end_date}")
+                    except:
+                        st.write(f"**Période:** {df.index[0]} à {df.index[-1]}")
 
                 # Générer l'analyse
                 if st.button("🚀 GÉNÉRER L'ANALYSE COMPLÈTE", type="primary"):
