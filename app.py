@@ -614,33 +614,45 @@ def main():
             file_name = uploaded_file.name.lower()
             try:
                 if file_name.endswith(('.xlsx', '.xls')):
-                    df = pd.read_excel(uploaded_file, index_col=0)
-                    # Essayer de parser les dates de l'index
-                    try:
-                        df.index = pd.to_datetime(df.index)
-                    except:
-                        pass
+                    df = pd.read_excel(uploaded_file)
                 elif file_name.endswith('.html'):
                     # Lire table HTML depuis uploaded file
                     content = uploaded_file.read().decode('utf-8')
                     tables = pd.read_html(content)
                     df = tables[0]  # Prendre la première table
+                    uploaded_file.seek(0)  # Reset file pointer
+                else:
+                    df = pd.read_csv(uploaded_file)
+
+                # Détecter le format MT5 (avec colonnes magic, symbol, type, etc.)
+                if 'profit' in df.columns and 'time_close' in df.columns:
+                    st.info("🎯 **Fichier MT5 détecté !** Conversion automatique en cours...")
+
+                    # Convertir les timestamps MT5 en dates
+                    df['time_close_dt'] = pd.to_datetime(df['time_close'], unit='s', errors='coerce')
+
+                    # Créer DataFrame avec dates en index et profit en valeur
+                    df_processed = df[['time_close_dt', 'profit']].copy()
+                    df_processed = df_processed.dropna()
+                    df_processed = df_processed.set_index('time_close_dt')
+                    df_processed = df_processed.sort_index()
+                    df = df_processed
+
+                    st.success("✅ Conversion MT5 terminée ! Utilisez le type 'trades'")
+
+                # Sinon, essayer le format standard avec dates en première colonne
+                elif len(df.columns) > 1:
+                    # Prendre la première colonne comme index
                     df = df.set_index(df.columns[0])
                     try:
                         df.index = pd.to_datetime(df.index)
                     except:
-                        pass
-                    uploaded_file.seek(0)  # Reset file pointer
-                else:
-                    df = pd.read_csv(uploaded_file, index_col=0)
-                    # Essayer de parser les dates de l'index
-                    try:
-                        df.index = pd.to_datetime(df.index)
-                    except:
+                        # Si ça ne marche pas, essayer avec les colonnes suivantes
                         pass
 
             except Exception as e:
                 st.error(f"Erreur lecture fichier: {e}")
+                st.exception(e)
                 st.stop()
 
             if analyzer.load_data(df, data_type):
