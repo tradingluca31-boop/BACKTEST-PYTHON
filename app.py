@@ -19,14 +19,21 @@ import warnings
 import io
 import base64
 
-# Import QuantStats avec gestion d'erreur
+# Patch pour éviter les problèmes IPython sur Streamlit Cloud
+import sys
+from unittest.mock import MagicMock
+
+# Mock IPython.display pour éviter les erreurs sur Streamlit Cloud
+sys.modules['IPython'] = MagicMock()
+sys.modules['IPython.display'] = MagicMock()
+
+# Import QuantStats avec patch IPython
 try:
     import quantstats as qs
     QUANTSTATS_AVAILABLE = True
 except ImportError as e:
     st.warning(f"QuantStats non disponible: {e}")
     QUANTSTATS_AVAILABLE = False
-    import scipy.stats as stats
 
 warnings.filterwarnings('ignore')
 
