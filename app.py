@@ -694,13 +694,13 @@ def main():
                             # Créer les différents formats d'export
                             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-                            st.markdown("### 📥 Options de téléchargement")
+                            st.markdown("### Options de telechargement")
 
                             col1, col2, col3 = st.columns(3)
 
                             with col1:
                                 st.download_button(
-                                    "📊 CSV Métriques",
+                                    "CSV Metriques",
                                     data=csv_data.to_csv(index=False),
                                     file_name=f"metrics_{timestamp}.csv",
                                     mime="text/csv",
@@ -716,19 +716,19 @@ def main():
                                     excel_data = excel_buffer.getvalue()
 
                                     st.download_button(
-                                        "📈 Excel XML (MS Office)",
+                                        "Excel XML (MS Office)",
                                         data=excel_data,
                                         file_name=f"metrics_{timestamp}.xlsx",
                                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                         type="secondary"
                                     )
                                 except Exception as e:
-                                    st.button("❌ Excel Error", disabled=True)
+                                    st.button("Excel Error", disabled=True)
                                     st.caption(f"Erreur: {str(e)[:50]}...")
 
                             with col3:
                                 st.download_button(
-                                    "🌐 HTML (Internet Explorer)",
+                                    "HTML (Internet Explorer)",
                                     data=html_report,
                                     file_name=f"report_IE_{timestamp}.html",
                                     mime="text/html",
