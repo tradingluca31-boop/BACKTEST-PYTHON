@@ -152,7 +152,7 @@ class BacktestAnalyzerPro:
         self.custom_metrics['RR_Ratio'] = rr_ratio
         return rr_ratio
 
-    def calculate_all_metrics(self, target_dd=None, target_profit=None, initial_capital=10000, target_profit_euro=None):
+    def calculate_all_metrics(self, target_dd=None, target_profit=None, initial_capital=10000, target_profit_euro=None, target_profit_total_euro=None):
         """
         Calculer toutes les métriques avec QuantStats (si disponible) ou implémentation custom
 
@@ -160,7 +160,8 @@ class BacktestAnalyzerPro:
             target_dd: Drawdown target personnalisé (décimal, ex: 0.10 pour 10%)
             target_profit: Profit target annuel personnalisé (décimal, ex: 0.20 pour 20%)
             initial_capital: Capital initial en euros
-            target_profit_euro: Profit target en euros
+            target_profit_euro: Profit target annuel en euros
+            target_profit_total_euro: Profit target total en euros (sur toute la période)
         """
         metrics = {}
 
@@ -267,6 +268,21 @@ class BacktestAnalyzerPro:
                 metrics['Profit_Atteint'] = "✅ Atteint" if actual_profit_euro >= target_profit_euro else "❌ Non atteint"
                 metrics['Profit_Ratio'] = actual_profit_euro / target_profit_euro if target_profit_euro > 0 else 0
                 metrics['Profit_Score'] = min(100, actual_profit_euro / target_profit_euro * 100) if target_profit_euro > 0 else 0
+
+            # Métriques profit total
+            if target_profit_total_euro is not None:
+                # Calculer le profit total réalisé = (valeur finale - valeur initiale)
+                if self.equity_curve is None:
+                    self.equity_curve = (1 + self.returns).cumprod()
+
+                total_return = (self.equity_curve.iloc[-1] - 1) if len(self.equity_curve) > 0 else 0
+                actual_profit_total_euro = total_return * initial_capital
+
+                metrics['Profit_Total_Target_Euro'] = target_profit_total_euro
+                metrics['Profit_Total_Actual_Euro'] = actual_profit_total_euro
+                metrics['Profit_Total_Atteint'] = "✅ Atteint" if actual_profit_total_euro >= target_profit_total_euro else "❌ Non atteint"
+                metrics['Profit_Total_Ratio'] = actual_profit_total_euro / target_profit_total_euro if target_profit_total_euro > 0 else 0
+                metrics['Profit_Total_Score'] = min(100, actual_profit_total_euro / target_profit_total_euro * 100) if target_profit_total_euro > 0 else 0
 
             # Métriques combinées si les deux targets sont définis
             if target_dd is not None and target_profit is not None and target_profit_euro is not None:
@@ -660,14 +676,20 @@ def main():
         initial_capital = st.number_input("Capital de départ (€)", min_value=100, max_value=10000000, value=10000, step=1000)
 
         # Section Profit personnalisé
-        st.markdown("**Profit Target**")
+        st.markdown("**Profit Targets**")
         custom_profit_enabled = st.checkbox("Utiliser Profit personnalisé", value=False)
         if custom_profit_enabled:
+            # Profit annuel
             target_profit_euro = st.number_input("Profit Target Annuel (€)", min_value=100, max_value=1000000, value=2000, step=100)
             target_profit = target_profit_euro / initial_capital  # Convertir en ratio
+
+            # Profit total
+            target_profit_total_euro = st.number_input("Profit Target Total (€)", min_value=100, max_value=10000000, value=5000, step=500,
+                                                      help="Profit total cible sur toute la période du backtest")
         else:
             target_profit = None
             target_profit_euro = None
+            target_profit_total_euro = None
 
         st.markdown("---")
         st.markdown("### Options d'affichage")
@@ -758,7 +780,7 @@ def main():
                     with st.spinner("Génération de l'analyse professionnelle..."):
 
                         # Calculer métriques
-                        metrics = analyzer.calculate_all_metrics(target_dd, target_profit, initial_capital, target_profit_euro)
+                        metrics = analyzer.calculate_all_metrics(target_dd, target_profit, initial_capital, target_profit_euro, target_profit_total_euro)
 
                         # Afficher métriques clés en cartes stylées
                         st.markdown("## 📈 Métriques Principales")
@@ -813,7 +835,7 @@ def main():
                             st.metric("Volatilité", f"{metrics.get('Volatility', 0):.2%}")
 
                         # Affichage des métriques personnalisées si définies
-                        if target_dd is not None or (target_profit is not None and target_profit_euro is not None):
+                        if target_dd is not None or (target_profit is not None and target_profit_euro is not None) or target_profit_total_euro is not None:
                             st.markdown("## 🎯 Analyse Personnalisée")
 
                             if target_dd is not None and target_profit is not None and target_profit_euro is not None:
@@ -883,6 +905,45 @@ def main():
                                     # Affichage additionnel du CAGR pour référence
                                     st.caption(f"📊 CAGR équivalent: {metrics.get('CAGR', 0):.2%}")
                                     st.caption(f"💼 Capital initial: {initial_capital:,.0f}€")
+
+                        # Affichage du profit total si défini
+                        if target_profit_total_euro is not None:
+                            st.markdown("### 🏆 Analyse Profit Total")
+
+                            col1, col2, col3, col4 = st.columns(4)
+
+                            with col1:
+                                st.metric(
+                                    "Target Total",
+                                    f"{target_profit_total_euro:,.0f}€",
+                                    help="Profit total cible sur toute la période"
+                                )
+
+                            with col2:
+                                actual_profit_total = metrics.get('Profit_Total_Actual_Euro', 0)
+                                st.metric(
+                                    "Profit Total Réalisé",
+                                    f"{actual_profit_total:,.0f}€",
+                                    delta=f"{actual_profit_total - target_profit_total_euro:+,.0f}€" if target_profit_total_euro != 0 else None
+                                )
+
+                            with col3:
+                                total_profit_status = metrics.get('Profit_Total_Atteint', 'N/A')
+                                st.metric("Statut Total", total_profit_status)
+
+                            with col4:
+                                total_profit_score = metrics.get('Profit_Total_Score', 0)
+                                st.metric("Score Total", f"{total_profit_score:.1f}/100")
+
+                            # Informations additionnelles
+                            if len(analyzer.returns) > 0:
+                                period_days = len(analyzer.returns)
+                                period_years = period_days / 365.25
+                                st.caption(f"📅 Période: {period_days} jours ({period_years:.1f} années)")
+
+                                if actual_profit_total != 0 and period_years > 0:
+                                    avg_profit_per_year = actual_profit_total / period_years
+                                    st.caption(f"📈 Profit moyen par an: {avg_profit_per_year:,.0f}€")
 
                         if show_charts:
                             # Graphiques
