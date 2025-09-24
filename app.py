@@ -543,7 +543,7 @@ def main():
     """, unsafe_allow_html=True)
 
     st.markdown('<h1 class="main-header">🎯 BACKTEST ANALYZER PRO</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="subtitle">Professional Trading Analytics - Wall Street Quantitative Analysis</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Professional Trading Analytics - Wall Street Quantitative Analysis - v2.1</p>', unsafe_allow_html=True)
 
     # Sidebar pour configuration
     with st.sidebar:
