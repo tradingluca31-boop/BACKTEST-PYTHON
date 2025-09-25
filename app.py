@@ -376,58 +376,51 @@ class BacktestAnalyzerPro:
                 # Max Drawdown (déjà calculé mais on s'assure)
                 metrics['Max_Drawdown'] = abs(drawdowns.min())
 
-                # Longest Drawdown (en nombre de trades)
+                # Calculs de drawdown basés sur les JOURS CALENDAIRES
                 # Identifier les périodes de drawdown (< 0)
                 in_drawdown = drawdowns < 0
                 if in_drawdown.any():
-                    # Grouper les périodes consécutives de drawdown
-                    drawdown_periods = []
-                    current_length = 0
+                    # Calculer les périodes de drawdown en JOURS entre les dates
+                    drawdown_periods_days = []
+                    current_start_date = None
 
-                    for is_dd in in_drawdown:
-                        if is_dd:
-                            current_length += 1
-                        else:
-                            if current_length > 0:
-                                drawdown_periods.append(current_length)
-                                current_length = 0
+                    for i, is_dd in enumerate(in_drawdown):
+                        current_date = self.returns.index[i]
+
+                        if is_dd and current_start_date is None:
+                            # Début d'une période de drawdown
+                            current_start_date = current_date
+                        elif not is_dd and current_start_date is not None:
+                            # Fin d'une période de drawdown
+                            period_days = (current_date - current_start_date).days
+                            drawdown_periods_days.append(period_days)
+                            current_start_date = None
 
                     # Ajouter la dernière période si elle se termine par un drawdown
-                    if current_length > 0:
-                        drawdown_periods.append(current_length)
+                    if current_start_date is not None:
+                        period_days = (self.returns.index[-1] - current_start_date).days
+                        drawdown_periods_days.append(period_days)
 
-                    metrics['Longest_Drawdown'] = max(drawdown_periods) if drawdown_periods else 0
-                    metrics['Average_Drawdown'] = sum(drawdown_periods) / len(drawdown_periods) if drawdown_periods else 0
+                    # Longest et Average Drawdown en jours
+                    if drawdown_periods_days:
+                        metrics['Longest_Drawdown'] = max(drawdown_periods_days)
+                        metrics['Average_Drawdown_Days'] = int(sum(drawdown_periods_days) / len(drawdown_periods_days))
+                    else:
+                        metrics['Longest_Drawdown'] = 0
+                        metrics['Average_Drawdown_Days'] = 0
                 else:
                     metrics['Longest_Drawdown'] = 0
-                    metrics['Average_Drawdown'] = 0
+                    metrics['Average_Drawdown_Days'] = 0
 
-                # Average Drawdown (moyenne des drawdowns négatifs seulement)
+                # Average Drawdown (moyenne des drawdowns négatifs en pourcentage)
                 negative_drawdowns = drawdowns[drawdowns < 0]
                 if len(negative_drawdowns) > 0:
                     metrics['Average_Drawdown_Pct'] = abs(negative_drawdowns.mean())
                 else:
                     metrics['Average_Drawdown_Pct'] = 0
-
-                # Average Drawdown Days (calculé en jours entre dates)
-                if len(self.returns) > 1:
-                    # Calculer la durée moyenne en jours calendaires
-                    total_period_days = (self.returns.index[-1] - self.returns.index[0]).days
-                    total_trades = len(self.returns)
-
-                    if total_trades > 0 and total_period_days > 0:
-                        # Durée moyenne par trade en jours
-                        avg_days_per_trade = total_period_days / total_trades
-                        # Durée moyenne des drawdowns en jours
-                        metrics['Average_Drawdown_Days'] = int(metrics['Average_Drawdown'] * avg_days_per_trade) if metrics['Average_Drawdown'] > 0 else 0
-                    else:
-                        metrics['Average_Drawdown_Days'] = 0
-                else:
-                    metrics['Average_Drawdown_Days'] = 0
             else:
                 metrics['Max_Drawdown'] = 0
                 metrics['Longest_Drawdown'] = 0
-                metrics['Average_Drawdown'] = 0
                 metrics['Average_Drawdown_Pct'] = 0
                 metrics['Average_Drawdown_Days'] = 0
 
@@ -1966,8 +1959,7 @@ def main():
                         with col4:
                             st.markdown(f"""
                             <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
-                                <h4 style="margin: 5px 0; font-size: 14px;">Average Drawdown</h4>
-                                <h4 style="margin: 0; font-size: 12px; opacity: 0.8;">Days</h4>
+                                <h4 style="margin: 5px 0; font-size: 14px;">Average Drawdown Days</h4>
                                 <h2 style="margin: 10px 0; color: #f56565;">{metrics.get('Average_Drawdown_Days', 0)}</h2>
                             </div>
                             """, unsafe_allow_html=True)
