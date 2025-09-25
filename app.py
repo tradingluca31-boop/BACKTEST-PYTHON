@@ -985,9 +985,15 @@ class BacktestAnalyzerPro:
                             )
                         )
 
+            # Remplacer les NaN par une valeur spéciale pour les cases vides
+            heatmap_data_display = heatmap_data.copy()
+
+            # Créer une matrice pour les couleurs custom
+            z_values = heatmap_data_display.values.copy()
+
             # Créer la heatmap
             fig = go.Figure(data=go.Heatmap(
-                z=heatmap_data.values,
+                z=z_values,
                 x=month_labels,
                 y=years,  # Utiliser les années comme strings
                 colorscale=[
@@ -1015,8 +1021,24 @@ class BacktestAnalyzerPro:
                 showlegend=False,
                 text=[[f'{val:.2f}' if pd.notna(val) else '' for val in row] for row in heatmap_data.values],
                 texttemplate='%{text}',
-                textfont={"size": 10, "color": "white", "family": "Arial Black"}
+                textfont={"size": 10, "color": "white", "family": "Arial Black"},
+                connectgaps=False,  # Ne pas connecter les valeurs manquantes
+                hoverongaps=False   # Pas de hover sur les cases vides
             ))
+
+            # Ajouter des rectangles gris pour les cases vides
+            for i, year in enumerate(heatmap_data.index):
+                for j, month in enumerate(range(1, 13)):
+                    value = heatmap_data.loc[year, month]
+                    if pd.isna(value):
+                        fig.add_shape(
+                            type="rect",
+                            x0=j-0.5, y0=i-0.5,
+                            x1=j+0.5, y1=i+0.5,
+                            fillcolor="#2d2d2d",
+                            line=dict(color="#404040", width=1),
+                            layer="below"
+                        )
 
             # Style de la heatmap
             fig.update_layout(
