@@ -1207,8 +1207,10 @@ def main():
 
                         # Additional Strategy Metrics Section
                         try:
+                            st.write(f"DEBUG Détaillées: analyzer.returns available: {analyzer.returns is not None and len(analyzer.returns) > 0}")
+
                             # Calculate additional metrics
-                            if len(analyzer.returns) > 0:
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
                                 # Best and Worst periods
                                 best_day = analyzer.returns.max()
                                 worst_day = analyzer.returns.min()
@@ -1261,7 +1263,71 @@ def main():
                                 positive_pct = (positive_periods / len(analyzer.returns)) * 100 if len(analyzer.returns) > 0 else 0
                                 negative_pct = (negative_periods / len(analyzer.returns)) * 100 if len(analyzer.returns) > 0 else 0
 
+                            elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
+                                st.write("DEBUG Détaillées: Utilise equity_curve comme fallback")
+                                # Fallback: utiliser equity_curve
+                                equity_returns = analyzer.equity_curve.pct_change().dropna()
+                                if len(equity_returns) > 0:
+                                    # Best and Worst periods
+                                    best_day = equity_returns.max()
+                                    worst_day = equity_returns.min()
+
+                                    # Best and Worst months
+                                    monthly_returns = equity_returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+                                    best_month = monthly_returns.max() if len(monthly_returns) > 0 else 0
+                                    worst_month = monthly_returns.min() if len(monthly_returns) > 0 else 0
+
+                                    # Average periods
+                                    avg_return = equity_returns.mean()
+                                    avg_month = monthly_returns.mean() if len(monthly_returns) > 0 else 0
+
+                                    # Win/Loss streaks
+                                    wins = equity_returns > 0
+                                    losses = equity_returns < 0
+
+                                    # Calculate winning streak
+                                    win_streaks = []
+                                    current_streak = 0
+                                    for win in wins:
+                                        if win:
+                                            current_streak += 1
+                                        else:
+                                            if current_streak > 0:
+                                                win_streaks.append(current_streak)
+                                            current_streak = 0
+                                    if current_streak > 0:
+                                        win_streaks.append(current_streak)
+
+                                    # Calculate losing streak
+                                    loss_streaks = []
+                                    current_streak = 0
+                                    for loss in losses:
+                                        if loss:
+                                            current_streak += 1
+                                        else:
+                                            if current_streak > 0:
+                                                loss_streaks.append(current_streak)
+                                            current_streak = 0
+                                    if current_streak > 0:
+                                        loss_streaks.append(current_streak)
+
+                                    best_streak = max(win_streaks) if win_streaks else 0
+                                    worst_streak = max(loss_streaks) if loss_streaks else 0
+
+                                    # Positive/Negative periods
+                                    positive_periods = len([x for x in equity_returns if x > 0])
+                                    negative_periods = len([x for x in equity_returns if x < 0])
+                                    positive_pct = (positive_periods / len(equity_returns)) * 100 if len(equity_returns) > 0 else 0
+                                    negative_pct = (negative_periods / len(equity_returns)) * 100 if len(equity_returns) > 0 else 0
+                                else:
+                                    best_day = worst_day = 0
+                                    best_month = worst_month = 0
+                                    avg_return = avg_month = 0
+                                    best_streak = worst_streak = 0
+                                    positive_periods = negative_periods = 0
+                                    positive_pct = negative_pct = 0
                             else:
+                                st.write("DEBUG Détaillées: Aucune donnée disponible")
                                 best_day = worst_day = 0
                                 best_month = worst_month = 0
                                 avg_return = avg_month = 0
@@ -1270,6 +1336,7 @@ def main():
                                 positive_pct = negative_pct = 0
 
                         except Exception as e:
+                            st.error(f"DEBUG Détaillées: Erreur calcul: {e}")
                             best_day = worst_day = 0
                             best_month = worst_month = 0
                             avg_return = avg_month = 0
