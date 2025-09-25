@@ -930,72 +930,62 @@ class BacktestAnalyzerPro:
                 return go.Figure()
 
             # Calculer les rendements mensuels réels
-            # Utiliser 'M' pour fin de mois et calculer correctement
-            monthly_returns = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1 if len(x) > 0 else np.nan)
+            monthly_returns = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+            monthly_returns = monthly_returns.dropna()
 
-            # Créer DataFrame avec années et mois
-            monthly_df = monthly_returns.to_frame('returns')
-            monthly_df = monthly_df.dropna()  # Supprimer les NaN d'abord
-
-            if len(monthly_df) == 0:
+            if len(monthly_returns) == 0:
                 st.warning("Pas assez de données pour créer la heatmap mensuelle")
                 return go.Figure()
 
-            monthly_df['year'] = monthly_df.index.year
-            monthly_df['month'] = monthly_df.index.month
+            # Créer une liste pour stocker tous les rendements mensuels avec leurs dates
+            monthly_data = []
+            for date, ret in monthly_returns.items():
+                monthly_data.append({
+                    'date': date,
+                    'year': date.year,
+                    'month': date.month,
+                    'return': ret * 100  # Convertir en pourcentage
+                })
 
-            # Créer la matrice pivot pour la heatmap
-            heatmap_data = monthly_df.pivot(index='year', columns='month', values='returns')
+            # Convertir en DataFrame
+            df = pd.DataFrame(monthly_data)
 
-            # Convertir en pourcentages
-            heatmap_data = heatmap_data * 100
+            # Créer la matrice pivot
+            pivot = df.pivot(index='year', columns='month', values='return')
 
             # S'assurer que nous avons toutes les colonnes de 1 à 12
             for month in range(1, 13):
-                if month not in heatmap_data.columns:
-                    heatmap_data[month] = np.nan
+                if month not in pivot.columns:
+                    pivot[month] = np.nan
 
             # Réorganiser les colonnes dans l'ordre chronologique
-            heatmap_data = heatmap_data.reindex(columns=range(1, 13))
+            pivot = pivot.reindex(columns=range(1, 13))
+            pivot = pivot.sort_index()  # Trier par années
 
             # Labels des mois
             month_labels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                            'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
-            # Obtenir les années pour les labels y
-            years = [str(year) for year in sorted(heatmap_data.index)]
+            # Années comme liste de strings
+            year_labels = [str(int(year)) for year in pivot.index]
 
-            # Créer les annotations avec les valeurs
-            annotations = []
-            for i, year in enumerate(heatmap_data.index):
-                for j, month in enumerate(range(1, 13)):
-                    value = heatmap_data.loc[year, month]
+            # Créer le texte pour chaque cellule
+            text_matrix = []
+            for i, year in enumerate(pivot.index):
+                row = []
+                for month in range(1, 13):
+                    value = pivot.loc[year, month]
                     if pd.notna(value):
-                        # Couleur du texte basée sur la valeur
-                        text_color = 'white' if abs(value) > 2 else 'black'
-                        annotations.append(
-                            dict(
-                                x=j,
-                                y=i,
-                                text=f'{value:.2f}',
-                                showarrow=False,
-                                font=dict(color=text_color, size=10, family="Arial Black"),
-                                xref="x",
-                                yref="y"
-                            )
-                        )
-
-            # Remplacer les NaN par une valeur spéciale pour les cases vides
-            heatmap_data_display = heatmap_data.copy()
-
-            # Créer une matrice pour les couleurs custom
-            z_values = heatmap_data_display.values.copy()
+                        row.append(f'{value:.2f}')
+                    else:
+                        row.append('')
+                text_matrix.append(row)
 
             # Créer la heatmap
             fig = go.Figure(data=go.Heatmap(
-                z=z_values,
+                z=pivot.values,
                 x=month_labels,
-                y=years,  # Utiliser les années comme strings
+                y=year_labels,
                 colorscale=[
                     [0.0, '#d73027'],    # Rouge foncé pour -8%
                     [0.2, '#fc8d59'],    # Rouge clair pour -4%
@@ -1017,28 +1007,12 @@ class BacktestAnalyzerPro:
                     thickness=15,
                     len=0.7
                 ),
-                hovertemplate='<b>%{y}</b> - <b>%{x}</b><br><b>Return:</b> %{z:.2f}%<extra></extra>',
-                showlegend=False,
-                text=[[f'{val:.2f}' if pd.notna(val) else '' for val in row] for row in heatmap_data.values],
+                text=text_matrix,
                 texttemplate='%{text}',
                 textfont={"size": 10, "color": "white", "family": "Arial Black"},
-                connectgaps=False,  # Ne pas connecter les valeurs manquantes
-                hoverongaps=False   # Pas de hover sur les cases vides
+                hovertemplate='<b>%{y}</b> - <b>%{x}</b><br><b>Return:</b> %{z:.2f}%<extra></extra>',
+                showlegend=False
             ))
-
-            # Ajouter des rectangles gris pour les cases vides
-            for i, year in enumerate(heatmap_data.index):
-                for j, month in enumerate(range(1, 13)):
-                    value = heatmap_data.loc[year, month]
-                    if pd.isna(value):
-                        fig.add_shape(
-                            type="rect",
-                            x0=j-0.5, y0=i-0.5,
-                            x1=j+0.5, y1=i+0.5,
-                            fillcolor="#2d2d2d",
-                            line=dict(color="#404040", width=1),
-                            layer="below"
-                        )
 
             # Style de la heatmap
             fig.update_layout(
@@ -1050,7 +1024,7 @@ class BacktestAnalyzerPro:
                 plot_bgcolor='#1e1e1e',
                 paper_bgcolor='#1e1e1e',
                 font=dict(color='white'),
-                height=500,
+                height=400,
                 xaxis=dict(
                     title='',
                     tickfont=dict(size=12, color='white', family='Arial Black'),
@@ -1061,9 +1035,9 @@ class BacktestAnalyzerPro:
                     title='',
                     tickfont=dict(size=12, color='white', family='Arial Black'),
                     showgrid=False,
-                    autorange='reversed'  # Pour avoir les années dans l'ordre croissant de haut en bas
+                    autorange='reversed'
                 ),
-                margin=dict(l=80, r=100, t=80, b=50)
+                margin=dict(l=60, r=120, t=80, b=50)
             )
 
             return fig
