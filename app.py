@@ -1386,16 +1386,9 @@ def main():
 
                         # Calculs mensuels RÉELS avec vérifications robustes
                         try:
-                            # DEBUG: Afficher les informations sur analyzer.returns
-                            st.write(f"🔍 DEBUG - analyzer.returns is not None: {analyzer.returns is not None}")
-                            if analyzer.returns is not None:
-                                st.write(f"🔍 DEBUG - len(analyzer.returns): {len(analyzer.returns)}")
-                                st.write(f"🔍 DEBUG - analyzer.returns sample: {analyzer.returns.head()}")
-
                             # Calculer les returns mensuels directement ici pour garantir qu'ils existent
                             if analyzer.returns is not None and len(analyzer.returns) > 0:
                                 monthly_returns_calc = analyzer.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
-                                st.write(f"🔍 DEBUG - monthly_returns_calc: {monthly_returns_calc}")
 
                                 if len(monthly_returns_calc) > 0:
                                     best_month_val = monthly_returns_calc.max()
@@ -1404,8 +1397,6 @@ def main():
                                     positive_months = len([x for x in monthly_returns_calc if x > 0])
                                     negative_months = len([x for x in monthly_returns_calc if x < 0])
                                     total_months = len(monthly_returns_calc)
-
-                                    st.write(f"🔍 DEBUG - best_month_val: {best_month_val}, worst_month_val: {worst_month_val}, avg_month_val: {avg_month_val}")
                                 else:
                                     # Si pas assez de données pour les mois, utiliser les returns journaliers
                                     best_month_val = analyzer.returns.max()
@@ -1414,15 +1405,11 @@ def main():
                                     positive_months = len([x for x in analyzer.returns if x > 0])
                                     negative_months = len([x for x in analyzer.returns if x < 0])
                                     total_months = len(analyzer.returns)
-
-                                    st.write(f"🔍 DEBUG (daily) - best_month_val: {best_month_val}, worst_month_val: {worst_month_val}")
                             else:
-                                st.write("⚠️ DEBUG - Aucune donnée analyzer.returns disponible")
                                 # Aucune donnée disponible
                                 best_month_val = worst_month_val = avg_month_val = 0
                                 positive_months = negative_months = total_months = 0
                         except Exception as e:
-                            st.write(f"❌ DEBUG - Erreur dans calculs mensuels: {e}")
                             # En cas d'erreur, essayer avec les variables existantes
                             try:
                                 best_month_val = best_month if 'best_month' in locals() else 0
@@ -1435,32 +1422,21 @@ def main():
                                 best_month_val = worst_month_val = avg_month_val = 0
                                 positive_months = negative_months = total_months = 0
 
+                        # Affichage avec métriques Streamlit natives (plus fiable)
                         with col1:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
-                                <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Meilleur Mois:</strong> {best_month_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Nombre de Mois+:</strong> {positive_months}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.success("📈 **Meilleures Performances**")
+                            st.metric("Meilleur Mois", f"{best_month_val:.2%}")
+                            st.metric("Mois Positifs", f"{positive_months}")
 
                         with col2:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
-                                <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Pire Mois:</strong> {worst_month_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Nombre de Mois-:</strong> {negative_months}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.error("📉 **Pires Performances**")
+                            st.metric("Pire Mois", f"{worst_month_val:.2%}")
+                            st.metric("Mois Négatifs", f"{negative_months}")
 
                         with col3:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
-                                <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
-                                <p style="margin: 5px 0;"><strong>Mois Moyen:</strong> {avg_month_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Total Mois:</strong> {total_months}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.info("📊 **Moyennes**")
+                            st.metric("Mois Moyen", f"{avg_month_val:.2%}")
+                            st.metric("Total Mois", f"{total_months}")
 
                         st.markdown("---")
 
@@ -1496,32 +1472,21 @@ def main():
                             best_year_val = worst_year_val = avg_year_val = 0
                             positive_years = negative_years = total_years = 0
 
+                        # Affichage avec métriques Streamlit natives (plus fiable)
                         with col1:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
-                                <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Meilleure Année:</strong> {best_year_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Nombre d'Années+:</strong> {positive_years}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.success("📈 **Meilleures Performances**")
+                            st.metric("Meilleure Année", f"{best_year_val:.2%}")
+                            st.metric("Années Positives", f"{positive_years}")
 
                         with col2:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
-                                <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Pire Année:</strong> {worst_year_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Nombre d'Années-:</strong> {negative_years}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.error("📉 **Pires Performances**")
+                            st.metric("Pire Année", f"{worst_year_val:.2%}")
+                            st.metric("Années Négatives", f"{negative_years}")
 
                         with col3:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
-                                <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
-                                <p style="margin: 5px 0;"><strong>Année Moyenne:</strong> {avg_year_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Total Années:</strong> {total_years}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.info("📊 **Moyennes**")
+                            st.metric("Année Moyenne", f"{avg_year_val:.2%}")
+                            st.metric("Total Années", f"{total_years}")
 
                         st.markdown("---")
 
@@ -1545,32 +1510,21 @@ def main():
                             best_trade_val = worst_trade_val = avg_trade_val = 0
                             positive_trades = negative_trades = total_trades = 0
 
+                        # Affichage avec métriques Streamlit natives
                         with col1:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
-                                <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Meilleur Trade:</strong> {best_trade_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Trades Gagnants:</strong> {positive_trades}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.success("📈 **Meilleures Performances**")
+                            st.metric("Meilleur Trade", f"{best_trade_val:.2%}")
+                            st.metric("Trades Gagnants", f"{positive_trades}")
 
                         with col2:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
-                                <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Pire Trade:</strong> {worst_trade_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Trades Perdants:</strong> {negative_trades}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.error("📉 **Pires Performances**")
+                            st.metric("Pire Trade", f"{worst_trade_val:.2%}")
+                            st.metric("Trades Perdants", f"{negative_trades}")
 
                         with col3:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
-                                <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
-                                <p style="margin: 5px 0;"><strong>Trade Moyen:</strong> {avg_trade_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Total Trades:</strong> {total_trades}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.info("📊 **Moyennes**")
+                            st.metric("Trade Moyen", f"{avg_trade_val:.2%}")
+                            st.metric("Total Trades", f"{total_trades}")
 
                         st.markdown("---")
 
@@ -1606,32 +1560,21 @@ def main():
                             best_quarter_val = worst_quarter_val = avg_quarter_val = 0
                             positive_quarters = negative_quarters = total_quarters = 0
 
+                        # Affichage avec métriques Streamlit natives
                         with col1:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
-                                <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Meilleur Trimestre:</strong> {best_quarter_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Trimestres+:</strong> {positive_quarters}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.success("📈 **Meilleures Performances**")
+                            st.metric("Meilleur Trimestre", f"{best_quarter_val:.2%}")
+                            st.metric("Trimestres Positifs", f"{positive_quarters}")
 
                         with col2:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
-                                <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Pire Trimestre:</strong> {worst_quarter_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Trimestres-:</strong> {negative_quarters}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.error("📉 **Pires Performances**")
+                            st.metric("Pire Trimestre", f"{worst_quarter_val:.2%}")
+                            st.metric("Trimestres Négatifs", f"{negative_quarters}")
 
                         with col3:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
-                                <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
-                                <p style="margin: 5px 0;"><strong>Trimestre Moyen:</strong> {avg_quarter_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Total Trimestres:</strong> {total_quarters}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.info("📊 **Moyennes**")
+                            st.metric("Trimestre Moyen", f"{avg_quarter_val:.2%}")
+                            st.metric("Total Trimestres", f"{total_quarters}")
 
                         # Expected Returns and VaR Section
                         st.markdown("### 🎯 Expected Returns and VaR")
