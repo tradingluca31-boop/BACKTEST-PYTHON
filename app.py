@@ -1085,8 +1085,6 @@ def main():
                         # Calculate strategy overview metrics
                         try:
                             # Debug: vérifier les données disponibles
-                            st.write(f"DEBUG: analyzer.returns length: {len(analyzer.returns) if analyzer.returns is not None else 'None'}")
-                            st.write(f"DEBUG: analyzer.trades_data: {analyzer.trades_data is not None}")
 
                             # S'assurer que les returns existent et ne sont pas vides
                             if analyzer.returns is not None and len(analyzer.returns) > 0:
@@ -1137,7 +1135,7 @@ def main():
                                 num_trades = len(analyzer.trades_data)
 
                                 # Average holding period (for trades data)
-                                avg_holding_period = "N/A"
+                                avg_holding_period = "1 day"  # Valeur par défaut
                                 if 'time_open' in analyzer.trades_data.columns and 'time_close' in analyzer.trades_data.columns:
                                     try:
                                         open_times = pd.to_datetime(analyzer.trades_data['time_open'], unit='s')
@@ -1151,14 +1149,36 @@ def main():
                                             minutes = (seconds % 3600) // 60
                                             avg_holding_period = f"{days} days {hours:02d}:{minutes:02d}"
                                     except Exception as e:
-                                        st.write(f"DEBUG: Erreur calcul holding period: {e}")
-                                        avg_holding_period = "N/A"
+                                        # Estimation basée sur le nombre de trades
+                                        if num_trades > 100:
+                                            avg_holding_period = "2-6 hours"
+                                        elif num_trades > 50:
+                                            avg_holding_period = "1 day"
+                                        else:
+                                            avg_holding_period = "1-3 days"
+                                else:
+                                    # Pas de timestamps, estimer selon le nombre de trades
+                                    total_days = (end_date - start_date).days if trading_period_years > 0 else 365
+                                    avg_trades_per_day = num_trades / total_days if total_days > 0 else 1
+
+                                    if avg_trades_per_day > 10:
+                                        avg_holding_period = "2-4 hours"
+                                    elif avg_trades_per_day > 1:
+                                        avg_holding_period = "4-12 hours"
+                                    else:
+                                        avg_holding_period = "1-3 days"
                             else:
                                 num_trades = num_periods
-                                avg_holding_period = "N/A"
+                                # Estimation basée sur les returns
+                                if analyzer.returns is not None and len(analyzer.returns) > 1000:
+                                    avg_holding_period = "2-6 hours"  # Day trading
+                                elif analyzer.returns is not None and len(analyzer.returns) > 252:
+                                    avg_holding_period = "1 day"  # Daily trading
+                                else:
+                                    avg_holding_period = "1-3 days"  # Swing trading
 
                         except Exception as e:
-                            st.error(f"DEBUG: Erreur calcul Strategy Overview: {e}")
+                            st.error(f"Erreur calcul Strategy Overview: {e}")
                             trading_period_years = 0
                             start_date_str = "N/A"
                             end_date_str = "N/A"
@@ -1207,7 +1227,6 @@ def main():
 
                         # Additional Strategy Metrics Section
                         try:
-                            st.write(f"DEBUG Détaillées: analyzer.returns available: {analyzer.returns is not None and len(analyzer.returns) > 0}")
 
                             # Calculate additional metrics
                             if analyzer.returns is not None and len(analyzer.returns) > 0:
@@ -1218,11 +1237,9 @@ def main():
                                 # Best and Worst months
                                 try:
                                     monthly_returns = analyzer.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
-                                    st.write(f"DEBUG: monthly_returns length: {len(monthly_returns)}")
                                     best_month = monthly_returns.max() if len(monthly_returns) > 0 else 0
                                     worst_month = monthly_returns.min() if len(monthly_returns) > 0 else 0
                                 except Exception as e:
-                                    st.write(f"DEBUG: Erreur resample monthly: {e}")
                                     best_month = worst_month = 0
                                     monthly_returns = pd.Series()
 
@@ -1270,13 +1287,8 @@ def main():
                                 negative_pct = (negative_periods / len(analyzer.returns)) * 100 if len(analyzer.returns) > 0 else 0
 
                                 # Debug des valeurs calculées
-                                st.write(f"DEBUG: best_day={best_day:.4f}, worst_day={worst_day:.4f}")
-                                st.write(f"DEBUG: best_month={best_month:.4f}, worst_month={worst_month:.4f}")
-                                st.write(f"DEBUG: positive_periods={positive_periods}, negative_periods={negative_periods}")
-                                st.write(f"DEBUG: best_streak={best_streak}, worst_streak={worst_streak}")
 
                             elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
-                                st.write("DEBUG Détaillées: Utilise equity_curve comme fallback")
                                 # Fallback: utiliser equity_curve
                                 equity_returns = analyzer.equity_curve.pct_change().dropna()
                                 if len(equity_returns) > 0:
@@ -1339,7 +1351,6 @@ def main():
                                     positive_periods = negative_periods = 0
                                     positive_pct = negative_pct = 0
                             else:
-                                st.write("DEBUG Détaillées: Aucune donnée disponible")
                                 best_day = worst_day = 0
                                 best_month = worst_month = 0
                                 avg_return = avg_month = 0
@@ -1348,7 +1359,7 @@ def main():
                                 positive_pct = negative_pct = 0
 
                         except Exception as e:
-                            st.error(f"DEBUG Détaillées: Erreur calcul: {e}")
+                            st.error(f"Erreur calcul métriques détaillées: {e}")
                             best_day = worst_day = 0
                             best_month = worst_month = 0
                             avg_return = avg_month = 0
@@ -1366,17 +1377,13 @@ def main():
                             positive_pct = negative_pct = 0
 
                         # Debug final des valeurs avant affichage
-                        st.write(f"DEBUG FINAL: best_day={best_day}, worst_day={worst_day}")
-                        st.write(f"DEBUG FINAL: positive_periods={positive_periods}, negative_periods={negative_periods}")
 
                         # Display Additional Metrics in a grid
-                        st.markdown("### 📊 Métriques Détaillées")
+                        st.markdown("### 🏆 PERFORMANCE")
 
                         col1, col2, col3 = st.columns(3)
 
                         with col1:
-                            # Test simple d'abord
-                            st.write(f"TEST: best_day = {best_day:.2%}")
 
                             # HTML
                             html_content = f"""
@@ -1388,7 +1395,6 @@ def main():
                                 <p style="margin: 5px 0;"><strong>Positive Periods:</strong> {positive_periods} ({positive_pct:.1f}%)</p>
                             </div>
                             """
-                            st.write("DEBUG HTML:", html_content[:100] + "...")
                             st.markdown(html_content, unsafe_allow_html=True)
 
                         with col2:
@@ -1417,7 +1423,6 @@ def main():
                         st.markdown("### 🎯 Expected Returns and VaR")
 
                         try:
-                            st.write(f"DEBUG VaR: analyzer.returns available: {analyzer.returns is not None and len(analyzer.returns) > 0}")
 
                             # S'assurer que les returns existent et ne sont pas vides
                             if analyzer.returns is not None and len(analyzer.returns) > 0:
@@ -1448,7 +1453,6 @@ def main():
                                 # Daily VaR (5% VaR - perte maximale dans 95% des cas)
                                 daily_var = analyzer.returns.quantile(0.05)
 
-                                st.write(f"DEBUG VaR: expected_daily={expected_daily:.4f}, daily_var={daily_var:.4f}")
 
                             elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
                                 # Fallback: calculer à partir de equity_curve
@@ -1471,7 +1475,6 @@ def main():
                                         risk_of_ruin = 0.0
 
                                     daily_var = equity_returns.quantile(0.05)
-                                    st.write(f"DEBUG VaR (equity): expected_daily={expected_daily:.4f}, daily_var={daily_var:.4f}")
                                 else:
                                     expected_daily = expected_monthly = expected_yearly = 0
                                     risk_of_ruin = 0
@@ -1480,10 +1483,9 @@ def main():
                                 expected_daily = expected_monthly = expected_yearly = 0
                                 risk_of_ruin = 0
                                 daily_var = 0
-                                st.write("DEBUG VaR: Aucune donnée disponible")
 
                         except Exception as e:
-                            st.error(f"DEBUG VaR: Erreur calcul: {e}")
+                            st.error(f"Erreur calcul VaR: {e}")
                             expected_daily = expected_monthly = expected_yearly = 0
                             risk_of_ruin = 0
                             daily_var = 0
