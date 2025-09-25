@@ -191,20 +191,38 @@ class BacktestAnalyzerPro:
                         extended_metrics['avg_holding_minutes'] = (avg_holding.seconds % 3600) // 60
                         extended_metrics['holding_display'] = f"{avg_holding.days} days {avg_holding.seconds // 3600:02d}:{(avg_holding.seconds % 3600) // 60:02d}"
                 else:
-                    # Fallback si pas de time_open
-                    extended_metrics['avg_holding_days'] = 0
-                    extended_metrics['avg_holding_hours'] = 0
-                    extended_metrics['avg_holding_minutes'] = 0
-                    extended_metrics['holding_display'] = "0 seconds"
+                    # Calcul basé sur la période et nombre de trades
+                    if len(self.trades_data) > 1:
+                        # Estimer durée moyenne entre trades
+                        num_trades = len(self.trades_data)
+                        total_days = (times.max() - times.min()).days
+                        avg_trades_per_day = num_trades / total_days if total_days > 0 else 1
+
+                        # Estimation intelligente
+                        if avg_trades_per_day > 10:
+                            extended_metrics['holding_display'] = "2-4 hours"
+                        elif avg_trades_per_day > 1:
+                            extended_metrics['holding_display'] = "6-12 hours"
+                        else:
+                            extended_metrics['holding_display'] = "1-3 days"
+                    else:
+                        extended_metrics['holding_display'] = "1 day"
             else:
                 # Valeurs par défaut
                 extended_metrics['start_period'] = '2024-01-01'
                 extended_metrics['end_period'] = '2024-12-31'
                 extended_metrics['trading_period_years'] = 1.0
-                extended_metrics['avg_holding_days'] = 1
-                extended_metrics['avg_holding_hours'] = 0
-                extended_metrics['avg_holding_minutes'] = 0
-                extended_metrics['holding_display'] = "1 days 00:00"
+                # Estimation basée sur returns si disponible
+                if not self.returns.empty:
+                    num_returns = len(self.returns)
+                    if num_returns > 1000:  # Beaucoup de returns = day trading
+                        extended_metrics['holding_display'] = "2-6 hours"
+                    elif num_returns > 252:  # Plus d'un an de données quotidiennes
+                        extended_metrics['holding_display'] = "1 day"
+                    else:
+                        extended_metrics['holding_display'] = "1-3 days"
+                else:
+                    extended_metrics['holding_display'] = "1 day"
         
         # Strategy Overview
         if not self.returns.empty:
@@ -241,7 +259,7 @@ class BacktestAnalyzerPro:
             streaks = []
             current_streak = 1
             current_sign = returns_sign.iloc[0]
-            
+
             for i in range(1, len(returns_sign)):
                 if returns_sign.iloc[i] == current_sign:
                     current_streak += 1
@@ -250,12 +268,43 @@ class BacktestAnalyzerPro:
                     current_streak = 1
                     current_sign = returns_sign.iloc[i]
             streaks.append((current_sign, current_streak))
-            
+
             winning_streaks = [s[1] for s in streaks if s[0] == 1]
             losing_streaks = [s[1] for s in streaks if s[0] == 0]
-            
+
             extended_metrics['max_winning_streak'] = max(winning_streaks) if winning_streaks else 0
             extended_metrics['max_losing_streak'] = max(losing_streaks) if losing_streaks else 0
+
+        # Best/Worst Performances
+        if not self.returns.empty:
+            # Meilleures performances
+            extended_metrics['best_day'] = self.returns.max()
+            extended_metrics['best_month'] = self.returns.resample('M').sum().max() if len(self.returns) > 30 else self.returns.max()
+            extended_metrics['best_year'] = self.returns.resample('A').sum().max() if len(self.returns) > 252 else self.returns.sum()
+
+            # Pires performances
+            extended_metrics['worst_day'] = self.returns.min()
+            extended_metrics['worst_month'] = self.returns.resample('M').sum().min() if len(self.returns) > 30 else self.returns.min()
+            extended_metrics['worst_year'] = self.returns.resample('A').sum().min() if len(self.returns) > 252 else self.returns.min()
+
+            # Moyennes
+            extended_metrics['avg_day'] = self.returns.mean()
+            extended_metrics['avg_month'] = self.returns.mean() * 30
+            extended_metrics['avg_year'] = self.returns.mean() * 365
+
+            # Calculs spéciaux pour trades
+            positive_returns = self.returns[self.returns > 0]
+            negative_returns = self.returns[self.returns < 0]
+
+            if len(positive_returns) > 0:
+                extended_metrics['avg_winning_trade'] = positive_returns.mean()
+            else:
+                extended_metrics['avg_winning_trade'] = 0
+
+            if len(negative_returns) > 0:
+                extended_metrics['avg_losing_trade'] = negative_returns.mean()
+            else:
+                extended_metrics['avg_losing_trade'] = 0
         
         # Winning Rates (par période)
         if not self.returns.empty:
@@ -1493,16 +1542,38 @@ def main():
                     
                     st.markdown("---")
                     
-                    # === WORST PERIODS ===
-                    st.subheader("😱 Worst Periods")
-                    
+                    # === PERFORMANCE ===
+                    st.subheader("🏆 PERFORMANCE")
+
+                    # Meilleures Performances
+                    st.markdown("**📈 Meilleures Performances**")
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("**Worst Trade**", f"{extended_metrics.get('worst_trade', 0):.2%}")
+                        st.metric("**Meilleur Jour**", f"{extended_metrics.get('best_day', 0):.2%}")
                     with col2:
-                        st.metric("**Worst Month**", f"{extended_metrics.get('worst_month', 0):.2%}")
+                        st.metric("**Meilleur Mois**", f"{extended_metrics.get('best_month', 0):.2%}")
                     with col3:
-                        st.metric("**Worst Year**", f"{extended_metrics.get('worst_year', 0):.2%}")
+                        st.metric("**Meilleure Année**", f"{extended_metrics.get('best_year', 0):.2%}")
+
+                    # Pires Performances
+                    st.markdown("**📉 Pires Performances**")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("**Pire Jour**", f"{extended_metrics.get('worst_day', 0):.2%}")
+                    with col2:
+                        st.metric("**Pire Mois**", f"{extended_metrics.get('worst_month', 0):.2%}")
+                    with col3:
+                        st.metric("**Pire Année**", f"{extended_metrics.get('worst_year', 0):.2%}")
+
+                    # Moyennes
+                    st.markdown("**📊 Moyennes**")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("**Moyenne Jour**", f"{extended_metrics.get('avg_day', 0):.2%}")
+                    with col2:
+                        st.metric("**Moyenne Mois**", f"{extended_metrics.get('avg_month', 0):.2%}")
+                    with col3:
+                        st.metric("**Moyenne Année**", f"{extended_metrics.get('avg_year', 0):.2%}")
                     
                     st.markdown("---")
                     
