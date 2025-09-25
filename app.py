@@ -1619,17 +1619,39 @@ def main():
                                     expected_monthly = expected_per_trade * 21
                                     expected_yearly = expected_per_trade * 252
 
-                                # Risk of Ruin (estimation basée sur la probabilité de perte importante)
+                                # Risk of Ruin (calcul corrigé)
                                 daily_vol = analyzer.returns.std()
                                 if daily_vol > 0:
-                                    # Calcul simplifié du Risk of Ruin
+                                    # Calcul basé sur la probabilité de drawdown important
                                     negative_returns = analyzer.returns[analyzer.returns < 0]
                                     if len(negative_returns) > 0:
-                                        avg_loss = abs(negative_returns.mean())
+                                        # Probabilité d'avoir des trades perdants
                                         loss_probability = len(negative_returns) / len(analyzer.returns)
-                                        # Estimation du risk of ruin (formule simplifiée)
-                                        risk_of_ruin = min(loss_probability * (avg_loss / expected_daily) if expected_daily > 0 else 0.5, 1.0)
+
+                                        # Risk of ruin basé sur le win rate et average win/loss
+                                        winning_trades = analyzer.returns[analyzer.returns > 0]
+                                        if len(winning_trades) > 0:
+                                            avg_win = winning_trades.mean()
+                                            avg_loss = abs(negative_returns.mean())
+
+                                            # Formule Risk of Ruin classique adaptée
+                                            if avg_win > 0:
+                                                win_loss_ratio = avg_win / avg_loss
+                                                win_rate = len(winning_trades) / len(analyzer.returns)
+
+                                                # Risk of ruin simplifié: si win_rate < 50% et win/loss < 1
+                                                if win_rate < 0.5 and win_loss_ratio < 1:
+                                                    risk_of_ruin = min(0.8 * (1 - win_rate) * (1 - win_loss_ratio), 0.95)
+                                                else:
+                                                    # Stratégie profitable: risk of ruin faible
+                                                    risk_of_ruin = max(0.05, 0.3 * (1 - win_rate))
+                                            else:
+                                                risk_of_ruin = 0.5
+                                        else:
+                                            # Que des trades perdants = 100% risk of ruin
+                                            risk_of_ruin = 1.0
                                     else:
+                                        # Aucun trade perdant = 0% risk of ruin
                                         risk_of_ruin = 0.0
                                 else:
                                     risk_of_ruin = 0.0
@@ -1651,9 +1673,23 @@ def main():
                                     if daily_vol > 0:
                                         negative_returns = equity_returns[equity_returns < 0]
                                         if len(negative_returns) > 0:
-                                            avg_loss = abs(negative_returns.mean())
-                                            loss_probability = len(negative_returns) / len(equity_returns)
-                                            risk_of_ruin = min(loss_probability * (avg_loss / expected_daily) if expected_daily > 0 else 0.5, 1.0)
+                                            # Calculer Risk of Ruin basé sur equity returns
+                                            winning_days = equity_returns[equity_returns > 0]
+                                            if len(winning_days) > 0:
+                                                avg_win = winning_days.mean()
+                                                avg_loss = abs(negative_returns.mean())
+                                                win_rate = len(winning_days) / len(equity_returns)
+
+                                                if avg_win > 0:
+                                                    win_loss_ratio = avg_win / avg_loss
+                                                    if win_rate < 0.5 and win_loss_ratio < 1:
+                                                        risk_of_ruin = min(0.6 * (1 - win_rate), 0.8)
+                                                    else:
+                                                        risk_of_ruin = max(0.05, 0.2 * (1 - win_rate))
+                                                else:
+                                                    risk_of_ruin = 0.5
+                                            else:
+                                                risk_of_ruin = 1.0
                                         else:
                                             risk_of_ruin = 0.0
                                     else:
