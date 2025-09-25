@@ -670,23 +670,39 @@ class BacktestAnalyzerPro:
             if self.returns is None or len(self.returns) == 0:
                 return go.Figure()
 
-            # Calculer les rendements mensuels avec la méthode correcte
-            # Utiliser 'MS' (Month Start) pour un meilleur regroupement
+            # Essayer différentes approches selon le type de données
+            # D'abord essayer le regroupement mensuel standard
             monthly_returns = self.returns.resample('MS').apply(lambda x: (1 + x).prod() - 1)
-
-            # Alternative si les données sont déjà des rendements journaliers
-            # monthly_returns = self.returns.resample('MS').sum()
-
-            if monthly_returns is None or len(monthly_returns) == 0:
-                return go.Figure()
-
-            # Nettoyer les données et filtrer les valeurs aberrantes
             monthly_returns_clean = monthly_returns.dropna()
 
-            # Filtrer les valeurs extrêmes qui pourraient être des erreurs (> 100% ou < -100%)
-            monthly_returns_clean = monthly_returns_clean[
-                (monthly_returns_clean > -1.0) & (monthly_returns_clean < 5.0)
-            ]
+            # Si nous avons très peu de mois (< 12), essayer une approche différente
+            if len(monthly_returns_clean) < 12:
+                # Option 1: Essayer avec des fenêtres glissantes de 30 jours
+                if len(self.returns) > 30:
+                    # Créer des "rendements mensuels" avec des fenêtres glissantes
+                    rolling_returns = []
+                    for i in range(0, len(self.returns) - 30, 10):  # Tous les 10 jours
+                        window_data = self.returns.iloc[i:i+30]
+                        if len(window_data) == 30:
+                            monthly_return = (1 + window_data).prod() - 1
+                            rolling_returns.append(monthly_return)
+
+                    if len(rolling_returns) > 0:
+                        monthly_returns_clean = pd.Series(rolling_returns)
+
+                # Option 2: Si toujours pas assez, utiliser des rendements hebdomadaires
+                elif len(self.returns) > 7:
+                    weekly_returns = self.returns.resample('W').apply(lambda x: (1 + x).prod() - 1)
+                    weekly_returns_clean = weekly_returns.dropna()
+                    if len(weekly_returns_clean) > 0:
+                        # Simuler des rendements mensuels en multipliant par ~4.33
+                        monthly_returns_clean = weekly_returns_clean * 4.33
+
+            # Filtrer les valeurs extrêmes
+            if len(monthly_returns_clean) > 0:
+                monthly_returns_clean = monthly_returns_clean[
+                    (monthly_returns_clean > -0.5) & (monthly_returns_clean < 2.0)
+                ]
 
             if len(monthly_returns_clean) < 1:
                 return go.Figure()
@@ -771,8 +787,8 @@ class BacktestAnalyzerPro:
                 start_year = 2018
                 end_year = 2024
 
-            # Titre simple comme dans l'image de référence
-            title_text = f'Distribution of Monthly Returns<br><span style="font-size:14px">{start_year} - {end_year}</span>'
+            # Titre avec info de debug pour comprendre les données
+            title_text = f'Distribution of Monthly Returns<br><span style="font-size:14px">{start_year} - {end_year} | {len(monthly_returns_clean)} data points</span>'
 
             # Mise à jour du layout
             fig.update_layout(
