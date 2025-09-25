@@ -1084,46 +1084,80 @@ def main():
 
                         # Calculate strategy overview metrics
                         try:
-                            # Get date range
-                            start_date = analyzer.returns.index[0] if len(analyzer.returns) > 0 else None
-                            end_date = analyzer.returns.index[-1] if len(analyzer.returns) > 0 else None
+                            # Debug: vérifier les données disponibles
+                            st.write(f"DEBUG: analyzer.returns length: {len(analyzer.returns) if analyzer.returns is not None else 'None'}")
+                            st.write(f"DEBUG: analyzer.trades_data: {analyzer.trades_data is not None}")
 
-                            # Calculate trading period in years
-                            if start_date and end_date:
+                            # S'assurer que les returns existent et ne sont pas vides
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
+                                # Get date range
+                                start_date = analyzer.returns.index[0]
+                                end_date = analyzer.returns.index[-1]
+
+                                # Calculate trading period in years
                                 trading_period_years = (end_date - start_date).days / 365.25
                                 start_date_str = start_date.strftime('%Y-%m-%d')
                                 end_date_str = end_date.strftime('%Y-%m-%d')
+
+                                # Calculate returns
+                                total_return = (1 + analyzer.returns).prod() - 1
+                                log_return = np.log(1 + total_return) if total_return > -1 else 0
+
+                                # Number of periods
+                                num_periods = len(analyzer.returns)
+
+                            elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
+                                # Fallback: utiliser equity_curve si returns n'est pas disponible
+                                start_date = analyzer.equity_curve.index[0]
+                                end_date = analyzer.equity_curve.index[-1]
+
+                                trading_period_years = (end_date - start_date).days / 365.25
+                                start_date_str = start_date.strftime('%Y-%m-%d')
+                                end_date_str = end_date.strftime('%Y-%m-%d')
+
+                                # Calculate returns from equity curve
+                                equity_returns = analyzer.equity_curve.pct_change().dropna()
+                                total_return = (analyzer.equity_curve.iloc[-1] / analyzer.equity_curve.iloc[0]) - 1
+                                log_return = np.log(1 + total_return) if total_return > -1 else 0
+
+                                num_periods = len(analyzer.equity_curve)
+
                             else:
+                                # Aucune donnée disponible
                                 trading_period_years = 0
                                 start_date_str = "N/A"
                                 end_date_str = "N/A"
+                                total_return = 0
+                                log_return = 0
+                                num_periods = 0
 
-                            # Calculate returns
-                            total_return = (1 + analyzer.returns).prod() - 1 if len(analyzer.returns) > 0 else 0
-                            log_return = np.log(1 + total_return) if total_return > -1 else 0
+                            # Number of trades
+                            if analyzer.trades_data is not None:
+                                num_trades = len(analyzer.trades_data)
 
-                            # Number of trades/periods
-                            num_periods = len(analyzer.returns)
-                            num_trades = len(analyzer.trades_data) if analyzer.trades_data is not None else num_periods
-
-                            # Average holding period (for trades data)
-                            avg_holding_period = "N/A"
-                            if analyzer.trades_data is not None and 'time_open' in analyzer.trades_data.columns and 'time_close' in analyzer.trades_data.columns:
-                                try:
-                                    open_times = pd.to_datetime(analyzer.trades_data['time_open'], unit='s')
-                                    close_times = pd.to_datetime(analyzer.trades_data['time_close'], unit='s')
-                                    holding_periods = close_times - open_times
-                                    avg_holding = holding_periods.mean()
-                                    if pd.notna(avg_holding):
-                                        days = avg_holding.days
-                                        seconds = avg_holding.seconds
-                                        hours = seconds // 3600
-                                        minutes = (seconds % 3600) // 60
-                                        avg_holding_period = f"{days} days {hours:02d}:{minutes:02d}"
-                                except:
-                                    avg_holding_period = "N/A"
+                                # Average holding period (for trades data)
+                                avg_holding_period = "N/A"
+                                if 'time_open' in analyzer.trades_data.columns and 'time_close' in analyzer.trades_data.columns:
+                                    try:
+                                        open_times = pd.to_datetime(analyzer.trades_data['time_open'], unit='s')
+                                        close_times = pd.to_datetime(analyzer.trades_data['time_close'], unit='s')
+                                        holding_periods = close_times - open_times
+                                        avg_holding = holding_periods.mean()
+                                        if pd.notna(avg_holding):
+                                            days = avg_holding.days
+                                            seconds = avg_holding.seconds
+                                            hours = seconds // 3600
+                                            minutes = (seconds % 3600) // 60
+                                            avg_holding_period = f"{days} days {hours:02d}:{minutes:02d}"
+                                    except Exception as e:
+                                        st.write(f"DEBUG: Erreur calcul holding period: {e}")
+                                        avg_holding_period = "N/A"
+                            else:
+                                num_trades = num_periods
+                                avg_holding_period = "N/A"
 
                         except Exception as e:
+                            st.error(f"DEBUG: Erreur calcul Strategy Overview: {e}")
                             trading_period_years = 0
                             start_date_str = "N/A"
                             end_date_str = "N/A"
