@@ -541,6 +541,87 @@ class BacktestAnalyzerPro:
             'max_losing_streak': max_losing_streak
         }
 
+    def calculate_tail_and_outlier_ratios(self):
+        """
+        Calculer les ratios de queue et d'outliers
+        """
+        if self.returns is None or len(self.returns) == 0:
+            return {
+                'tail_ratio': 0.0,
+                'outlier_win_ratio': 0.0,
+                'outlier_loss_ratio': 0.0
+            }
+
+        returns = self.returns.dropna()
+        if len(returns) == 0:
+            return {
+                'tail_ratio': 0.0,
+                'outlier_win_ratio': 0.0,
+                'outlier_loss_ratio': 0.0
+            }
+
+        # Calculer les statistiques de base
+        mean_return = returns.mean()
+        std_return = returns.std()
+
+        # Définir les seuils d'outliers (par exemple, au-delà de 2 écarts-types)
+        outlier_threshold = 2 * std_return
+
+        # Séparer les gains et les pertes
+        gains = returns[returns > 0]
+        losses = returns[returns < 0]
+
+        # 1. Tail Ratio : rapport entre les rendements extrêmes positifs et négatifs
+        # Utiliser les percentiles 95% et 5%
+        if len(returns) >= 20:  # Assez de données pour des percentiles fiables
+            top_5_percent = np.percentile(returns, 95)
+            bottom_5_percent = np.percentile(returns, 5)
+
+            if bottom_5_percent != 0:
+                tail_ratio = abs(top_5_percent / bottom_5_percent)
+            else:
+                tail_ratio = float('inf') if top_5_percent > 0 else 0.0
+        else:
+            # Pas assez de données, utiliser max/min
+            max_return = returns.max()
+            min_return = returns.min()
+            if min_return != 0:
+                tail_ratio = abs(max_return / min_return)
+            else:
+                tail_ratio = float('inf') if max_return > 0 else 0.0
+
+        # 2. Outlier Win Ratio : rapport des gains extrêmes
+        if len(gains) > 0:
+            extreme_gains = gains[gains > (mean_return + outlier_threshold)]
+            if len(gains) > 0:
+                outlier_win_ratio = len(extreme_gains) / len(gains)
+            else:
+                outlier_win_ratio = 0.0
+        else:
+            outlier_win_ratio = 0.0
+
+        # 3. Outlier Loss Ratio : rapport des pertes extrêmes
+        if len(losses) > 0:
+            extreme_losses = losses[losses < (mean_return - outlier_threshold)]
+            if len(losses) > 0:
+                outlier_loss_ratio = len(extreme_losses) / len(losses)
+            else:
+                outlier_loss_ratio = 0.0
+        else:
+            outlier_loss_ratio = 0.0
+
+        # Limiter les valeurs extrêmes pour l'affichage
+        if tail_ratio == float('inf'):
+            tail_ratio = 999.0
+        elif tail_ratio > 999:
+            tail_ratio = 999.0
+
+        return {
+            'tail_ratio': tail_ratio,
+            'outlier_win_ratio': outlier_win_ratio,
+            'outlier_loss_ratio': outlier_loss_ratio
+        }
+
     def create_equity_curve_plot(self):
         """
         Graphique equity curve professionnel
@@ -2455,6 +2536,57 @@ def main():
                                 <h1 style="margin: 10px 0; color: white; font-size: 3em;">{}</h1>
                             </div>
                             """.format(streaks['max_losing_streak']), unsafe_allow_html=True)
+
+                        st.markdown("---")
+
+                        # Section Tail and Outlier Ratios
+                        st.markdown("## 📊 Tail and Outlier Ratios")
+
+                        # Calculer les ratios
+                        tail_ratios = analyzer.calculate_tail_and_outlier_ratios()
+
+                        # Affichage en trois colonnes
+                        tail_col1, tail_col2, tail_col3 = st.columns(3)
+
+                        with tail_col1:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #17a2b8, #138496);
+                                        color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h4 style="margin: 0; color: white;">Tail Ratio</h4>
+                                <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{:.2f}</h1>
+                            </div>
+                            """.format(tail_ratios['tail_ratio']), unsafe_allow_html=True)
+
+                        with tail_col2:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #28a745, #20c997);
+                                        color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h4 style="margin: 0; color: white;">Outlier Win Ratio</h4>
+                                <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{:.2f}</h1>
+                            </div>
+                            """.format(tail_ratios['outlier_win_ratio']), unsafe_allow_html=True)
+
+                        with tail_col3:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #dc3545, #c82333);
+                                        color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h4 style="margin: 0; color: white;">Outlier Loss Ratio</h4>
+                                <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{:.2f}</h1>
+                            </div>
+                            """.format(tail_ratios['outlier_loss_ratio']), unsafe_allow_html=True)
+
+                        # Explication des ratios
+                        with st.expander("ℹ️ Explication des Tail and Outlier Ratios"):
+                            st.markdown("""
+                            **Tail Ratio**: Rapport entre les rendements extrêmes positifs (95e percentile) et négatifs (5e percentile).
+                            Une valeur > 1 indique que les gains extrêmes sont plus importants que les pertes extrêmes.
+
+                            **Outlier Win Ratio**: Proportion des gains qui sont considérés comme des outliers (> moyenne + 2σ).
+                            Une valeur élevée indique des gains exceptionnels fréquents.
+
+                            **Outlier Loss Ratio**: Proportion des pertes qui sont considérées comme des outliers (< moyenne - 2σ).
+                            Une valeur élevée indique des pertes exceptionnelles fréquentes.
+                            """)
 
                         st.markdown("---")
 
