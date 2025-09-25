@@ -923,46 +923,122 @@ class BacktestAnalyzerPro:
 
     def create_monthly_heatmap(self):
         """
-        Heatmap des rendements mensuels (sans QuantStats)
+        Heatmap professionnelle des rendements mensuels avec calculs réels
         """
         try:
-            # Calculer les rendements mensuels manuellement
-            monthly_returns = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+            if self.returns is None or len(self.returns) == 0:
+                return go.Figure()
 
-            # Créer une matrice année/mois
+            # Calculer les rendements mensuels réels
+            # Utiliser 'MS' pour début de mois et calculer correctement
+            monthly_returns = self.returns.resample('MS').apply(lambda x: (1 + x).prod() - 1 if len(x) > 0 else 0)
+
+            # Créer DataFrame avec années et mois
             monthly_df = monthly_returns.to_frame('returns')
             monthly_df['year'] = monthly_df.index.year
             monthly_df['month'] = monthly_df.index.month
 
-            # Pivot pour créer la heatmap
-            heatmap_data = monthly_df.pivot(index='year', columns='month', values='returns').fillna(0) * 100
+            # Filtrer les données valides
+            monthly_df = monthly_df.dropna()
 
-            # Créer des labels pour les mois
-            month_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            # Créer la matrice pivot pour la heatmap
+            heatmap_data = monthly_df.pivot(index='year', columns='month', values='returns')
 
+            # Convertir en pourcentages
+            heatmap_data = heatmap_data * 100
+
+            # S'assurer que nous avons toutes les colonnes de 1 à 12
+            for month in range(1, 13):
+                if month not in heatmap_data.columns:
+                    heatmap_data[month] = np.nan
+
+            # Réorganiser les colonnes dans l'ordre chronologique
+            heatmap_data = heatmap_data.reindex(columns=range(1, 13))
+
+            # Labels des mois
+            month_labels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+                           'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+
+            # Créer les annotations avec les valeurs
+            annotations = []
+            for i, year in enumerate(heatmap_data.index):
+                for j, month in enumerate(range(1, 13)):
+                    value = heatmap_data.loc[year, month]
+                    if pd.notna(value) and value != 0:
+                        # Couleur du texte basée sur la valeur
+                        text_color = 'white' if abs(value) > 2 else 'black'
+                        annotations.append(
+                            dict(
+                                x=j,
+                                y=i,
+                                text=f'{value:.2f}',
+                                showarrow=False,
+                                font=dict(color=text_color, size=10, family="Arial Black"),
+                                xref="x",
+                                yref="y"
+                            )
+                        )
+
+            # Créer la heatmap
             fig = go.Figure(data=go.Heatmap(
                 z=heatmap_data.values,
-                x=[month_labels[i-1] if i-1 < len(month_labels) else f'{i:02d}' for i in heatmap_data.columns],
+                x=month_labels,
                 y=heatmap_data.index,
-                colorscale='RdYlGn',
+                colorscale=[
+                    [0.0, '#d73027'],    # Rouge foncé pour -8%
+                    [0.2, '#fc8d59'],    # Rouge clair pour -4%
+                    [0.35, '#fee08b'],   # Jaune pour -2%
+                    [0.5, '#ffffbf'],    # Crème pour 0%
+                    [0.65, '#d9ef8b'],   # Vert clair pour +2%
+                    [0.8, '#91bfdb'],    # Bleu clair pour +4%
+                    [1.0, '#4575b4']     # Bleu foncé pour +8%
+                ],
                 zmid=0,
-                hovertemplate='<b>Year:</b> %{y}<br><b>Month:</b> %{x}<br><b>Return:</b> %{z:.2f}%<extra></extra>'
+                zmin=-8,
+                zmax=8,
+                showscale=True,
+                colorbar=dict(
+                    title="Return (%)",
+                    titleside="right",
+                    tickmode="linear",
+                    tick0=-8,
+                    dtick=2
+                ),
+                hovertemplate='<b>%{y}</b> - <b>%{x}</b><br><b>Return:</b> %{z:.2f}%<extra></extra>',
+                showlegend=False
             ))
 
+            # Ajouter les annotations
+            fig.update_layout(annotations=annotations)
+
+            # Style de la heatmap
             fig.update_layout(
                 title={
-                    'text': 'Monthly Returns Heatmap (%)',
+                    'text': 'Metrics - Monthly Returns (%)',
                     'x': 0.5,
-                    'font': {'size': 18, 'color': '#2c3e50'}
+                    'font': {'size': 20, 'color': 'white', 'family': 'Arial Black'}
                 },
-                xaxis_title='Month',
-                yaxis_title='Year',
-                template='plotly_white',
-                height=400
+                plot_bgcolor='#1e1e1e',
+                paper_bgcolor='#1e1e1e',
+                font=dict(color='white'),
+                height=500,
+                xaxis=dict(
+                    title='',
+                    tickfont=dict(size=12, color='white', family='Arial Black'),
+                    gridcolor='rgba(255,255,255,0.1)',
+                    side='bottom'
+                ),
+                yaxis=dict(
+                    title='',
+                    tickfont=dict(size=12, color='white', family='Arial Black'),
+                    gridcolor='rgba(255,255,255,0.1)',
+                    autorange='reversed'  # Pour avoir les années dans l'ordre croissant de haut en bas
+                ),
+                margin=dict(l=50, r=50, t=80, b=50)
             )
 
             return fig
+
         except Exception as e:
             st.warning(f"Erreur création heatmap: {e}")
             return go.Figure()
