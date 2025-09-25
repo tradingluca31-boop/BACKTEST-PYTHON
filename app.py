@@ -1170,6 +1170,116 @@ def main():
                         </div>
                         """, unsafe_allow_html=True)
 
+                        # Additional Strategy Metrics Section
+                        try:
+                            # Calculate additional metrics
+                            if len(analyzer.returns) > 0:
+                                # Best and Worst periods
+                                best_day = analyzer.returns.max()
+                                worst_day = analyzer.returns.min()
+
+                                # Best and Worst months
+                                monthly_returns = analyzer.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+                                best_month = monthly_returns.max() if len(monthly_returns) > 0 else 0
+                                worst_month = monthly_returns.min() if len(monthly_returns) > 0 else 0
+
+                                # Average periods
+                                avg_return = analyzer.returns.mean()
+                                avg_month = monthly_returns.mean() if len(monthly_returns) > 0 else 0
+
+                                # Win/Loss streaks
+                                wins = analyzer.returns > 0
+                                losses = analyzer.returns < 0
+
+                                # Calculate winning streak
+                                win_streaks = []
+                                current_streak = 0
+                                for win in wins:
+                                    if win:
+                                        current_streak += 1
+                                    else:
+                                        if current_streak > 0:
+                                            win_streaks.append(current_streak)
+                                        current_streak = 0
+                                if current_streak > 0:
+                                    win_streaks.append(current_streak)
+
+                                # Calculate losing streak
+                                loss_streaks = []
+                                current_streak = 0
+                                for loss in losses:
+                                    if loss:
+                                        current_streak += 1
+                                    else:
+                                        if current_streak > 0:
+                                            loss_streaks.append(current_streak)
+                                        current_streak = 0
+                                if current_streak > 0:
+                                    loss_streaks.append(current_streak)
+
+                                best_streak = max(win_streaks) if win_streaks else 0
+                                worst_streak = max(loss_streaks) if loss_streaks else 0
+
+                                # Positive/Negative periods
+                                positive_periods = len([x for x in analyzer.returns if x > 0])
+                                negative_periods = len([x for x in analyzer.returns if x < 0])
+                                positive_pct = (positive_periods / len(analyzer.returns)) * 100 if len(analyzer.returns) > 0 else 0
+                                negative_pct = (negative_periods / len(analyzer.returns)) * 100 if len(analyzer.returns) > 0 else 0
+
+                            else:
+                                best_day = worst_day = 0
+                                best_month = worst_month = 0
+                                avg_return = avg_month = 0
+                                best_streak = worst_streak = 0
+                                positive_periods = negative_periods = 0
+                                positive_pct = negative_pct = 0
+
+                        except Exception as e:
+                            best_day = worst_day = 0
+                            best_month = worst_month = 0
+                            avg_return = avg_month = 0
+                            best_streak = worst_streak = 0
+                            positive_periods = negative_periods = 0
+                            positive_pct = negative_pct = 0
+
+                        # Display Additional Metrics in a grid
+                        st.markdown("### 📊 Métriques Détaillées")
+
+                        col1, col2, col3 = st.columns(3)
+
+                        with col1:
+                            st.markdown(f"""
+                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
+                                <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
+                                <p style="margin: 5px 0;"><strong>Best Day:</strong> {best_day:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Best Month:</strong> {best_month:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Best Streak:</strong> {best_streak} périodes</p>
+                                <p style="margin: 5px 0;"><strong>Positive Periods:</strong> {positive_periods} ({positive_pct:.1f}%)</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col2:
+                            st.markdown(f"""
+                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
+                                <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
+                                <p style="margin: 5px 0;"><strong>Worst Day:</strong> {worst_day:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Worst Month:</strong> {worst_month:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Worst Streak:</strong> {worst_streak} périodes</p>
+                                <p style="margin: 5px 0;"><strong>Negative Periods:</strong> {negative_periods} ({negative_pct:.1f}%)</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col3:
+                            st.markdown(f"""
+                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
+                                <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
+                                <p style="margin: 5px 0;"><strong>Avg. Day:</strong> {avg_return:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Avg. Month:</strong> {avg_month:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Total Periods:</strong> {len(analyzer.returns)}</p>
+                                <p style="margin: 5px 0;"><strong>Win Rate:</strong> {positive_pct:.1f}%</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
                         st.markdown("---")
 
                         # Afficher métriques clés en cartes stylées
