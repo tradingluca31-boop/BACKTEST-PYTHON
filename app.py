@@ -501,6 +501,46 @@ class BacktestAnalyzerPro:
 
         return metrics
 
+    def calculate_streaks(self):
+        """
+        Calculer les séries de gains et pertes maximales
+        """
+        if self.returns is None or len(self.returns) == 0:
+            return {'max_winning_streak': 0, 'max_losing_streak': 0}
+
+        returns = self.returns.dropna()
+        if len(returns) == 0:
+            return {'max_winning_streak': 0, 'max_losing_streak': 0}
+
+        # Déterminer les gains et pertes
+        winning_trades = returns > 0
+        losing_trades = returns < 0
+
+        # Calculer les séries
+        max_winning_streak = 0
+        max_losing_streak = 0
+        current_winning_streak = 0
+        current_losing_streak = 0
+
+        for is_win, is_loss in zip(winning_trades, losing_trades):
+            if is_win:
+                current_winning_streak += 1
+                current_losing_streak = 0
+                max_winning_streak = max(max_winning_streak, current_winning_streak)
+            elif is_loss:
+                current_losing_streak += 1
+                current_winning_streak = 0
+                max_losing_streak = max(max_losing_streak, current_losing_streak)
+            else:
+                # Trade neutre (breakeven)
+                current_winning_streak = 0
+                current_losing_streak = 0
+
+        return {
+            'max_winning_streak': max_winning_streak,
+            'max_losing_streak': max_losing_streak
+        }
+
     def create_equity_curve_plot(self):
         """
         Graphique equity curve professionnel
@@ -2254,6 +2294,36 @@ def main():
 
                         with col4:
                             st.metric("Recovery Factor", f"{metrics.get('Recovery_Factor', 0):.2f}")
+
+                        # Section Streaks
+                        st.markdown("---")
+                        st.markdown("## 🔥 Streaks")
+
+                        # Calculer les streaks
+                        streaks = analyzer.calculate_streaks()
+
+                        # Affichage des streaks en colonnes
+                        streak_col1, streak_col2 = st.columns(2)
+
+                        with streak_col1:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #28a745, #20c997);
+                                        color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h4 style="margin: 0; color: white;">Max Winning Streak</h4>
+                                <h1 style="margin: 10px 0; color: white; font-size: 3em;">{}</h1>
+                            </div>
+                            """.format(streaks['max_winning_streak']), unsafe_allow_html=True)
+
+                        with streak_col2:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #dc3545, #e83e8c);
+                                        color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h4 style="margin: 0; color: white;">Max Losing Streak</h4>
+                                <h1 style="margin: 10px 0; color: white; font-size: 3em;">{}</h1>
+                            </div>
+                            """.format(streaks['max_losing_streak']), unsafe_allow_html=True)
+
+                        st.markdown("---")
 
                         # Affichage des métriques personnalisées si définies
                         if target_dd is not None or (target_profit is not None and target_profit_euro is not None) or target_profit_total_euro is not None:
