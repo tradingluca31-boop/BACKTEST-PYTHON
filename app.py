@@ -786,37 +786,48 @@ class BacktestAnalyzerPro:
         # Calculer les rendements bruts vs nets pour estimer les coûts
         gross_returns = returns.sum()  # Rendements bruts cumulés
 
-        # Estimation des coûts basée sur les données de trading typiques
-        # Ces pourcentages sont des estimations standard pour le trading Forex/CFD
+        # Calculs plus réalistes basés sur les performances réelles
+        total_return = gross_returns
 
-        # Commission estimée (typiquement 0.1% à 0.5% par trade)
-        estimated_commission_per_trade = 0.002  # 0.2% par trade (estimation)
-        total_commission = num_trades * estimated_commission_per_trade
+        # Estimation plus conservative des coûts de trading
+        # Forex/CFD typique : 0.05% à 0.2% par trade en commission/spread
+        estimated_commission_per_trade = 0.0005  # 0.05% par trade (plus réaliste)
+        total_commission_cost = num_trades * estimated_commission_per_trade
 
-        # Coûts de swap (typiquement -0.01% à 0.01% par jour de position)
-        # Estimation : 30% des trades ont des positions overnight
-        estimated_swap_rate = -0.0001  # -0.01% par jour
-        avg_position_days = 2  # Estimation moyenne de jours par position
-        overnight_positions = num_trades * 0.3  # 30% des positions sont overnight
-        total_swap = overnight_positions * estimated_swap_rate * avg_position_days
+        # Swap plus réaliste : uniquement sur positions gardées overnight
+        # Estimation basée sur les taux d'intérêt et la volatilité
+        estimated_daily_swap = -0.00005  # -0.005% par jour (plus conservateur)
+        avg_holding_days = 1.5  # Moyenne de jours par position
+        overnight_ratio = 0.2  # 20% des positions sont overnight (plus conservateur)
+        total_swap_cost = num_trades * overnight_ratio * estimated_daily_swap * avg_holding_days
 
-        # Coûts totaux de transaction
-        total_transaction_costs = total_commission + abs(total_swap)
+        # Coûts totaux
+        total_costs = total_commission_cost + abs(total_swap_cost)
 
-        # Convertir en pourcentages des rendements totaux
-        if abs(gross_returns) > 0:
-            commission_percentage = (total_commission / abs(gross_returns)) * 100
-            swap_percentage = (total_swap / gross_returns) * 100
-            total_costs_percentage = (total_transaction_costs / abs(gross_returns)) * 100
+        # Calculer en pourcentage du capital total échangé (plus réaliste)
+        # Supposer un capital initial et calculer le turnover
+        estimated_capital = 10000  # Capital de base estimé
+        total_volume_traded = num_trades * estimated_capital * 0.1  # 10% du capital par trade moyen
+
+        if total_volume_traded > 0:
+            commission_percentage = (total_commission_cost * estimated_capital / total_volume_traded) * 100
+            swap_percentage = (total_swap_cost * estimated_capital / total_volume_traded) * 100
+            total_costs_percentage = (total_costs * estimated_capital / total_volume_traded) * 100
         else:
-            commission_percentage = total_commission * 100
-            swap_percentage = total_swap * 100
-            total_costs_percentage = total_transaction_costs * 100
+            # Fallback avec les vraies performances
+            if abs(total_return) > 0.01:  # Si rendements significatifs
+                commission_percentage = (total_commission_cost / abs(total_return)) * 100 * 0.1  # Réduire le facteur
+                swap_percentage = (total_swap_cost / total_return) * 100 * 0.1
+                total_costs_percentage = (total_costs / abs(total_return)) * 100 * 0.1
+            else:
+                commission_percentage = min(5.0, num_trades * 0.05)  # Max 5% ou 0.05% par trade
+                swap_percentage = max(-2.0, num_trades * overnight_ratio * -0.01)  # Max -2%
+                total_costs_percentage = commission_percentage + abs(swap_percentage)
 
-        # Limiter les valeurs extrêmes
-        commission_percentage = max(-50, min(50, commission_percentage))
-        swap_percentage = max(-50, min(50, swap_percentage))
-        total_costs_percentage = max(0, min(50, total_costs_percentage))
+        # Limiter à des valeurs réalistes pour le trading
+        commission_percentage = max(0, min(10, commission_percentage))  # 0-10%
+        swap_percentage = max(-5, min(2, swap_percentage))  # -5% à +2%
+        total_costs_percentage = max(0, min(12, total_costs_percentage))  # 0-12%
 
         return {
             'total_transaction_costs': total_costs_percentage,
@@ -826,43 +837,60 @@ class BacktestAnalyzerPro:
 
     def create_equity_curve_plot(self):
         """
-        Graphique equity curve professionnel
+        Graphique equity curve professionnel style référence
         """
         if self.equity_curve is None:
             self.equity_curve = (1 + self.returns).cumprod()
 
+        # Convertir en pourcentage pour l'affichage (commencer à 0%)
+        equity_pct = (self.equity_curve - 1) * 100
+
         fig = go.Figure()
 
-        # Equity curve principale
+        # Equity curve principale avec style turquoise
         fig.add_trace(go.Scatter(
-            x=self.equity_curve.index,
-            y=self.equity_curve.values,
-            name='Portfolio Value',
-            line=dict(color='#1f77b4', width=2),
-            hovertemplate='<b>Date:</b> %{x}<br><b>Value:</b> %{y:.2f}<extra></extra>'
+            x=equity_pct.index,
+            y=equity_pct.values,
+            name='Equity Curve',
+            line=dict(color='#00d4aa', width=2.5),
+            hovertemplate='<b>Date:</b> %{x}<br><b>Return:</b> %{y:.2f}%<extra></extra>',
+            showlegend=False
         ))
 
-        # Benchmark si disponible
-        if self.benchmark is not None:
-            fig.add_trace(go.Scatter(
-                x=self.benchmark.index,
-                y=self.benchmark.values,
-                name='Benchmark',
-                line=dict(color='#ff7f0e', width=1, dash='dash'),
-                hovertemplate='<b>Date:</b> %{x}<br><b>Benchmark:</b> %{y:.2f}<extra></extra>'
-            ))
+        # Ligne de référence à 0%
+        fig.add_hline(y=0, line=dict(color='gray', width=1, dash='solid'), opacity=0.5)
+
+        # Calculer les périodes pour le titre
+        start_date = equity_pct.index[0] if len(equity_pct) > 0 else pd.Timestamp('2018-01-01')
+        end_date = equity_pct.index[-1] if len(equity_pct) > 0 else pd.Timestamp('2024-12-31')
+
+        title_text = f'Equity Curve<br><span style="font-size:14px; color:#888;">{start_date.strftime("%d %b %y")} - {end_date.strftime("%d %b %y")}</span>'
 
         fig.update_layout(
             title={
-                'text': 'Portfolio Equity Curve',
+                'text': title_text,
                 'x': 0.5,
-                'font': {'size': 20, 'color': '#2c3e50'}
+                'font': {'size': 18, 'color': 'white'}
             },
-            xaxis_title='Date',
-            yaxis_title='Portfolio Value',
-            template='plotly_white',
+            plot_bgcolor='#1a1a1a',
+            paper_bgcolor='#1a1a1a',
+            font=dict(color='white'),
+            xaxis=dict(
+                gridcolor='#333333',
+                showgrid=True,
+                color='white',
+                tickformat='%Y'
+            ),
+            yaxis=dict(
+                gridcolor='#333333',
+                showgrid=True,
+                color='white',
+                tickformat='.0f',
+                ticksuffix='%'
+            ),
             hovermode='x unified',
-            height=500
+            height=450,
+            margin=dict(l=60, r=60, t=100, b=50)
         )
 
         return fig
