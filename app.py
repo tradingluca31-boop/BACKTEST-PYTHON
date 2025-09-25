@@ -754,6 +754,76 @@ class BacktestAnalyzerPro:
             'win_rate': win_rate
         }
 
+    def calculate_transaction_costs(self):
+        """
+        Calculer les coûts de transaction (estimation basée sur les données)
+        """
+        if self.returns is None or len(self.returns) == 0:
+            return {
+                'total_transaction_costs': 0.0,
+                'commission_costs': 0.0,
+                'swap_costs': 0.0
+            }
+
+        returns = self.returns.dropna()
+        if len(returns) == 0:
+            return {
+                'total_transaction_costs': 0.0,
+                'commission_costs': 0.0,
+                'swap_costs': 0.0
+            }
+
+        # Compter le nombre de trades (positions non nulles)
+        num_trades = len(returns[returns != 0])
+
+        if num_trades == 0:
+            return {
+                'total_transaction_costs': 0.0,
+                'commission_costs': 0.0,
+                'swap_costs': 0.0
+            }
+
+        # Calculer les rendements bruts vs nets pour estimer les coûts
+        gross_returns = returns.sum()  # Rendements bruts cumulés
+
+        # Estimation des coûts basée sur les données de trading typiques
+        # Ces pourcentages sont des estimations standard pour le trading Forex/CFD
+
+        # Commission estimée (typiquement 0.1% à 0.5% par trade)
+        estimated_commission_per_trade = 0.002  # 0.2% par trade (estimation)
+        total_commission = num_trades * estimated_commission_per_trade
+
+        # Coûts de swap (typiquement -0.01% à 0.01% par jour de position)
+        # Estimation : 30% des trades ont des positions overnight
+        estimated_swap_rate = -0.0001  # -0.01% par jour
+        avg_position_days = 2  # Estimation moyenne de jours par position
+        overnight_positions = num_trades * 0.3  # 30% des positions sont overnight
+        total_swap = overnight_positions * estimated_swap_rate * avg_position_days
+
+        # Coûts totaux de transaction
+        total_transaction_costs = total_commission + abs(total_swap)
+
+        # Convertir en pourcentages des rendements totaux
+        if abs(gross_returns) > 0:
+            commission_percentage = (total_commission / abs(gross_returns)) * 100
+            swap_percentage = (total_swap / gross_returns) * 100
+            total_costs_percentage = (total_transaction_costs / abs(gross_returns)) * 100
+        else:
+            commission_percentage = total_commission * 100
+            swap_percentage = total_swap * 100
+            total_costs_percentage = total_transaction_costs * 100
+
+        # Limiter les valeurs extrêmes
+        commission_percentage = max(-50, min(50, commission_percentage))
+        swap_percentage = max(-50, min(50, swap_percentage))
+        total_costs_percentage = max(0, min(50, total_costs_percentage))
+
+        return {
+            'total_transaction_costs': total_costs_percentage,
+            'commission_costs': commission_percentage,
+            'swap_costs': swap_percentage
+        }
+
     def create_equity_curve_plot(self):
         """
         Graphique equity curve professionnel
@@ -2822,6 +2892,59 @@ def main():
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
                             </div>
                             """.format(winning_stats['win_rate']), unsafe_allow_html=True)
+
+                        st.markdown("---")
+
+                        # Section Transaction Costs
+                        st.markdown("## 💳 Transaction Costs")
+
+                        # Calculer les coûts de transaction
+                        transaction_costs = analyzer.calculate_transaction_costs()
+
+                        # Affichage en trois colonnes
+                        cost_col1, cost_col2, cost_col3 = st.columns(3)
+
+                        with cost_col1:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                                        color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h4 style="margin: 0; color: white;">Transaction Costs</h4>
+                                <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{:.2f}%</h1>
+                            </div>
+                            """.format(transaction_costs['total_transaction_costs']), unsafe_allow_html=True)
+
+                        with cost_col2:
+                            commission_color = "#dc3545" if transaction_costs['commission_costs'] < 0 else "#28a745"
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, {commission_color}, #c82333);
+                                        color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h4 style="margin: 0; color: white;">Commission</h4>
+                                <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{transaction_costs['commission_costs']:+.2f}%</h1>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with cost_col3:
+                            swap_color = "#dc3545" if transaction_costs['swap_costs'] < 0 else "#28a745"
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                                        color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h4 style="margin: 0; color: white;">Swap</h4>
+                                <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{transaction_costs['swap_costs']:+.2f}%</h1>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        # Explication des coûts
+                        with st.expander("ℹ️ Explication des Transaction Costs"):
+                            st.markdown(f"""
+                            **Transaction Costs**: Estimation des coûts totaux de trading basés sur {len(analyzer.returns.dropna())} trades.
+
+                            **Commission**: Coûts estimés des commissions de courtage (typiquement 0.1-0.5% par trade).
+
+                            **Swap**: Coûts/gains estimés des positions overnight (frais de financement).
+
+                            *Note: Ces valeurs sont des estimations basées sur des standards de marché.
+                            Les coûts réels peuvent varier selon votre courtier.*
+                            """)
 
                         st.markdown("---")
 
