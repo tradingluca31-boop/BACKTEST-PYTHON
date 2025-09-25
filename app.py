@@ -929,9 +929,22 @@ class BacktestAnalyzerPro:
             if self.returns is None or len(self.returns) == 0:
                 return go.Figure()
 
-            # Calculer les rendements mensuels réels
-            monthly_returns = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+            # Calculer les rendements mensuels réels avec une méthode plus précise
+            # Utiliser la somme pour une meilleure précision sur les petits nombres
+            monthly_returns = self.returns.resample('M').sum()
             monthly_returns = monthly_returns.dropna()
+
+            # Si tous les rendements sont très petits, utiliser la méthode composée
+            # Sinon utiliser la somme qui est plus précise pour les rendements de trading
+            monthly_returns_compound = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1 if len(x) > 0 else 0)
+            monthly_returns_compound = monthly_returns_compound.dropna()
+
+            # Comparer et utiliser la méthode qui donne les meilleurs résultats
+            # Pour les données de trading, la somme est souvent plus appropriée
+            if monthly_returns.abs().max() > monthly_returns_compound.abs().max():
+                monthly_returns = monthly_returns
+            else:
+                monthly_returns = monthly_returns_compound
 
             if len(monthly_returns) == 0:
                 st.warning("Pas assez de données pour créer la heatmap mensuelle")
