@@ -680,34 +680,44 @@ class BacktestAnalyzerPro:
             # Créer l'histogramme
             fig = go.Figure()
 
-            # Histogramme des rendements mensuels réels
+            # Histogramme des rendements mensuels réels avec comptage réel
             fig.add_trace(go.Histogram(
                 x=monthly_returns_pct,
-                nbinsx=min(30, len(monthly_returns_pct)),
+                nbinsx=min(20, max(8, len(monthly_returns_pct)//2)),
                 name='Monthly Returns',
                 marker_color='#00d4aa',
-                opacity=0.7,
-                histnorm='probability density',
+                opacity=0.8,
+                histnorm='count',  # Utiliser le comptage réel
                 showlegend=False
             ))
 
-            # Créer la courbe normale basée sur les vraies statistiques
-            x_range = np.linspace(monthly_returns_pct.min() - std_return,
-                                monthly_returns_pct.max() + std_return, 1000)
+            # Créer une courbe lisse basée sur les données réelles (KDE approximation)
+            try:
+                from scipy import stats
+                if len(monthly_returns_pct) > 3:
+                    # Densité empirique avec noyau gaussien
+                    kde = stats.gaussian_kde(monthly_returns_pct)
+                    x_range = np.linspace(monthly_returns_pct.min() * 1.2,
+                                        monthly_returns_pct.max() * 1.2, 200)
+                    density = kde(x_range)
 
-            # Fonction de densité de probabilité normale
-            normal_curve = (1 / (std_return * np.sqrt(2 * np.pi))) * \
-                          np.exp(-0.5 * ((x_range - mean_return) / std_return) ** 2)
+                    # Ajuster l'échelle pour correspondre à l'histogramme
+                    hist_counts, _ = np.histogram(monthly_returns_pct,
+                                                bins=min(20, max(8, len(monthly_returns_pct)//2)))
+                    scale_factor = max(hist_counts) / max(density) if max(density) > 0 else 1
+                    density_scaled = density * scale_factor
 
-            # Ajouter la courbe normale
-            fig.add_trace(go.Scatter(
-                x=x_range,
-                y=normal_curve,
-                mode='lines',
-                name='Normal Distribution',
-                line=dict(color='white', width=3),
-                showlegend=False
-            ))
+                    # Ajouter la courbe lisse des données réelles
+                    fig.add_trace(go.Scatter(
+                        x=x_range,
+                        y=density_scaled,
+                        mode='lines',
+                        name='Empirical Distribution',
+                        line=dict(color='white', width=3),
+                        showlegend=False
+                    ))
+            except ImportError:
+                pass  # Si scipy n'est pas disponible, continuer sans la courbe
 
             # Ligne verticale pour la moyenne
             fig.add_vline(
@@ -716,14 +726,18 @@ class BacktestAnalyzerPro:
                 annotation_text=f"Mean: {mean_return:.1f}%"
             )
 
+            # Calculer les périodes réelles
+            start_year = monthly_returns.index[0].year if len(monthly_returns) > 0 else 2018
+            end_year = monthly_returns.index[-1].year if len(monthly_returns) > 0 else 2024
+
             # Mise à jour du layout
             fig.update_layout(
                 title={
-                    'text': f'Distribution of Monthly Returns<br><span style="font-size:14px">{monthly_returns.index[0].strftime("%Y")} - {monthly_returns.index[-1].strftime("%Y")}</span>',
+                    'text': f'Distribution of Monthly Returns<br><span style="font-size:14px">{start_year} - {end_year}</span>',
                     'x': 0.5,
                     'font': {'size': 18, 'color': 'white'}
                 },
-                xaxis_title='Monthly Returns (%)',
+                xaxis_title='',  # Pas de titre sur l'axe X
                 yaxis_title='Occurrences',
                 template='plotly_dark',
                 height=400,
@@ -733,7 +747,8 @@ class BacktestAnalyzerPro:
                 xaxis=dict(
                     gridcolor='#333333',
                     tickformat='.0f',
-                    ticksuffix='%'
+                    ticksuffix='%',
+                    range=[monthly_returns_pct.min() * 1.1, monthly_returns_pct.max() * 1.1]
                 ),
                 yaxis=dict(
                     gridcolor='#333333'
