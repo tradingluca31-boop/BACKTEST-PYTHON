@@ -1,39 +1,36 @@
-# 🎯 Backtest Analyzer Professional
+# 🎯 BACKTEST-PYTHON
 
-Application Streamlit pour l'analyse quantitative de backtests de trading.
+## Professional Quantitative Trading Analytics
 
-## 🚀 Démo Live
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://backtest-python.streamlit.app)
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://your-app-name.streamlit.app)
+### 🚀 Application Streamlit Live
 
-## 📊 Fonctionnalités
+L'application de backtest est maintenant disponible en ligne ! Accède à ton analyseur professionnel depuis n'importe quel ordinateur.
 
-- **Analyse complète** : Métriques QuantStats + métriques personnalisées
-- **Graphiques professionnels** : Equity curve, drawdowns, heatmap
-- **Rapport HTML** : Exportation de rapport institutionnel
-- **R/R Analysis** : Calcul du Risk/Reward moyen par trade
-- **Probabilités prédictives** : Analyse de momentum et saisonnalité
+**🌐 URL de l'app** : [https://backtest-python.streamlit.app](https://backtest-python.streamlit.app)
 
-## 💻 Utilisation
+### 📊 Fonctionnalités
 
-1. Uploadez votre fichier CSV de backtest
-2. Sélectionnez le type de données (returns/equity/trades)
-3. Générez le rapport complet
+- **Analyse quantitative complète** avec QuantStats
+- **Métriques personnalisées** (R/R moyen, probabilités prédictives)  
+- **Graphiques professionnels** (Equity curve, Drawdowns, Heatmap)
+- **Rapport HTML exportable** de style institutionnel
+- **Interface intuitive** pour upload CSV
 
-## 📈 Format CSV supporté
-
-```
-Date,Returns
-2024-01-01,0.01
-2024-01-02,-0.005
-2024-01-03,0.02
-```
-
-## 🛠️ Installation locale
+### 💻 Utilisation locale
 
 ```bash
 pip install -r requirements.txt
-streamlit run app.py
+streamlit run streamlit_app.py
+```
+
+### 📈 Format CSV supporté
+
+```csv
+Date,Returns
+2024-01-01,0.01
+2024-01-02,-0.005
 ```
 
 ---
