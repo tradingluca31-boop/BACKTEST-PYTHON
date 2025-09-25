@@ -152,13 +152,36 @@ class BacktestAnalyzerPro:
                 rr_ratio = 0
         else:
             # Calcul précis avec données de trades
-            wins = self.trades_data[self.trades_data['PnL'] > 0]['PnL']
-            losses = abs(self.trades_data[self.trades_data['PnL'] < 0]['PnL'])
+            try:
+                # Essayer de trouver la colonne de profits (PnL, profit, etc.)
+                profit_col = None
+                for col in self.trades_data.columns:
+                    if col.lower() in ['pnl', 'profit', 'p&l', 'pl']:
+                        profit_col = col
+                        break
 
-            if len(losses) > 0 and len(wins) > 0:
-                rr_ratio = wins.mean() / losses.mean()
-            else:
-                rr_ratio = 0
+                if profit_col is not None:
+                    wins = self.trades_data[self.trades_data[profit_col] > 0][profit_col]
+                    losses = abs(self.trades_data[self.trades_data[profit_col] < 0][profit_col])
+
+                    if len(losses) > 0 and len(wins) > 0:
+                        rr_ratio = wins.mean() / losses.mean()
+                    else:
+                        rr_ratio = 0
+                else:
+                    # Fallback si pas de colonne trouvée
+                    rr_ratio = 0
+            except Exception:
+                # En cas d'erreur, utiliser les returns
+                positive_returns = self.returns[self.returns > 0]
+                negative_returns = self.returns[self.returns < 0]
+
+                if len(negative_returns) > 0 and len(positive_returns) > 0:
+                    avg_win = positive_returns.mean()
+                    avg_loss = abs(negative_returns.mean())
+                    rr_ratio = avg_win / avg_loss
+                else:
+                    rr_ratio = 0
 
         self.custom_metrics['RR_Ratio'] = rr_ratio
         return rr_ratio
@@ -177,22 +200,40 @@ class BacktestAnalyzerPro:
         metrics = {}
 
         try:
+            # Vérifier que nous avons des returns valides
+            if self.returns is None or len(self.returns) == 0:
+                st.warning("⚠️ Aucun return calculé - vérifiez vos données")
+                return {key: 0.0 for key in ['CAGR', 'Sharpe', 'Sortino', 'Max_Drawdown',
+                          'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg', 'Volatility']}
+
+            # Nettoyer les returns
+            returns = self.returns.dropna()
+            if len(returns) == 0:
+                st.warning("⚠️ Tous les returns sont NaN - vérifiez vos données")
+                return {key: 0.0 for key in ['CAGR', 'Sharpe', 'Sortino', 'Max_Drawdown',
+                          'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg', 'Volatility']}
+
             if QUANTSTATS_AVAILABLE:
-                # Utiliser QuantStats si disponible
-                metrics['CAGR'] = qs.stats.cagr(self.returns)
-                metrics['Sharpe'] = qs.stats.sharpe(self.returns)
-                metrics['Sortino'] = qs.stats.sortino(self.returns)
-                metrics['Calmar'] = qs.stats.calmar(self.returns)
-                metrics['Max_Drawdown'] = qs.stats.max_drawdown(self.returns)
-                metrics['Volatility'] = qs.stats.volatility(self.returns)
-                metrics['VaR'] = qs.stats.var(self.returns)
-                metrics['CVaR'] = qs.stats.cvar(self.returns)
-                metrics['Win_Rate'] = qs.stats.win_rate(self.returns)
-                metrics['Profit_Factor'] = qs.stats.profit_factor(self.returns)
-                metrics['Omega_Ratio'] = qs.stats.omega(self.returns)
-                metrics['Recovery_Factor'] = qs.stats.recovery_factor(self.returns)
-                metrics['Skewness'] = qs.stats.skew(self.returns)
-                metrics['Kurtosis'] = qs.stats.kurtosis(self.returns)
+                try:
+                    # Utiliser QuantStats si disponible
+                    metrics['CAGR'] = qs.stats.cagr(returns)
+                    metrics['Sharpe'] = qs.stats.sharpe(returns)
+                    metrics['Sortino'] = qs.stats.sortino(returns)
+                    metrics['Calmar'] = qs.stats.calmar(returns)
+                    metrics['Max_Drawdown'] = qs.stats.max_drawdown(returns)
+                    metrics['Volatility'] = qs.stats.volatility(returns)
+                    metrics['VaR'] = qs.stats.var(returns)
+                    metrics['CVaR'] = qs.stats.cvar(returns)
+                    metrics['Win_Rate'] = qs.stats.win_rate(returns)
+                    metrics['Profit_Factor'] = qs.stats.profit_factor(returns)
+                    metrics['Omega_Ratio'] = qs.stats.omega(returns)
+                    metrics['Recovery_Factor'] = qs.stats.recovery_factor(returns)
+                    metrics['Skewness'] = qs.stats.skew(returns)
+                    metrics['Kurtosis'] = qs.stats.kurtosis(returns)
+                except Exception as e:
+                    st.warning(f"Erreur QuantStats: {e} - Utilisation fallback")
+                    # Forcer l'utilisation du fallback
+                    raise Exception("QuantStats failed")
             else:
                 # Implémentation custom fallback
                 returns = self.returns.dropna()
@@ -245,7 +286,7 @@ class BacktestAnalyzerPro:
                 metrics['Profit_Factor'] = gross_profits / gross_losses if gross_losses > 0 else 0
 
                 # VaR et autres métriques
-                metrics['VaR'] = np.percentile(returns, 5)
+                metrics['VaR'] = returns.quantile(0.05)
                 var_threshold = metrics['VaR']
                 tail_losses = returns[returns <= var_threshold]
                 metrics['CVaR'] = tail_losses.mean() if len(tail_losses) > 0 else metrics['VaR']
@@ -1038,6 +1079,447 @@ def main():
                         # Calculer métriques
                         metrics = analyzer.calculate_all_metrics(target_dd, target_profit, initial_capital, target_profit_euro, target_profit_total_euro)
 
+                        # Strategy Overview Section
+                        st.markdown("## 🎯 Strategy Overview")
+
+                        # Calculate strategy overview metrics
+                        try:
+                            # Debug: vérifier les données disponibles
+                            st.write(f"DEBUG: analyzer.returns length: {len(analyzer.returns) if analyzer.returns is not None else 'None'}")
+                            st.write(f"DEBUG: analyzer.trades_data: {analyzer.trades_data is not None}")
+
+                            # S'assurer que les returns existent et ne sont pas vides
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
+                                # Get date range
+                                start_date = analyzer.returns.index[0]
+                                end_date = analyzer.returns.index[-1]
+
+                                # Calculate trading period in years
+                                trading_period_years = (end_date - start_date).days / 365.25
+                                start_date_str = start_date.strftime('%Y-%m-%d')
+                                end_date_str = end_date.strftime('%Y-%m-%d')
+
+                                # Calculate returns
+                                total_return = (1 + analyzer.returns).prod() - 1
+                                import math
+                                log_return = math.log(1 + total_return) if total_return > -1 else 0
+
+                                # Number of periods
+                                num_periods = len(analyzer.returns)
+
+                            elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
+                                # Fallback: utiliser equity_curve si returns n'est pas disponible
+                                start_date = analyzer.equity_curve.index[0]
+                                end_date = analyzer.equity_curve.index[-1]
+
+                                trading_period_years = (end_date - start_date).days / 365.25
+                                start_date_str = start_date.strftime('%Y-%m-%d')
+                                end_date_str = end_date.strftime('%Y-%m-%d')
+
+                                # Calculate returns from equity curve
+                                equity_returns = analyzer.equity_curve.pct_change().dropna()
+                                total_return = (analyzer.equity_curve.iloc[-1] / analyzer.equity_curve.iloc[0]) - 1
+                                log_return = math.log(1 + total_return) if total_return > -1 else 0
+
+                                num_periods = len(analyzer.equity_curve)
+
+                            else:
+                                # Aucune donnée disponible
+                                trading_period_years = 0
+                                start_date_str = "N/A"
+                                end_date_str = "N/A"
+                                total_return = 0
+                                log_return = 0
+                                num_periods = 0
+
+                            # Number of trades
+                            if analyzer.trades_data is not None:
+                                num_trades = len(analyzer.trades_data)
+
+                                # Average holding period (for trades data)
+                                avg_holding_period = "N/A"
+                                if 'time_open' in analyzer.trades_data.columns and 'time_close' in analyzer.trades_data.columns:
+                                    try:
+                                        open_times = pd.to_datetime(analyzer.trades_data['time_open'], unit='s')
+                                        close_times = pd.to_datetime(analyzer.trades_data['time_close'], unit='s')
+                                        holding_periods = close_times - open_times
+                                        avg_holding = holding_periods.mean()
+                                        if pd.notna(avg_holding):
+                                            days = avg_holding.days
+                                            seconds = avg_holding.seconds
+                                            hours = seconds // 3600
+                                            minutes = (seconds % 3600) // 60
+                                            avg_holding_period = f"{days} days {hours:02d}:{minutes:02d}"
+                                    except Exception as e:
+                                        st.write(f"DEBUG: Erreur calcul holding period: {e}")
+                                        avg_holding_period = "N/A"
+                            else:
+                                num_trades = num_periods
+                                avg_holding_period = "N/A"
+
+                        except Exception as e:
+                            st.error(f"DEBUG: Erreur calcul Strategy Overview: {e}")
+                            trading_period_years = 0
+                            start_date_str = "N/A"
+                            end_date_str = "N/A"
+                            total_return = 0
+                            log_return = 0
+                            num_trades = 0
+                            avg_holding_period = "N/A"
+
+                        # Display Strategy Overview in a styled box
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    padding: 25px; border-radius: 15px; color: white; margin: 20px 0;">
+                            <h3 style="text-align: center; margin: 0 0 20px 0;">📊 STRATEGY OVERVIEW</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Trading Period</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{trading_period_years:.1f} Years</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Start Period</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{start_date_str}</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">End Period</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{end_date_str}</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Log Return</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{log_return:.2%}</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Absolute Return</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{total_return:.2%}</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Number of Trades</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{num_trades}</h3>
+                                </div>
+                            </div>
+                            <div style="text-align: center; margin-top: 15px;">
+                                <h4 style="margin: 5px 0; color: #e8f4f8;">Average Holding Period</h4>
+                                <h3 style="margin: 5px 0; color: white;">{avg_holding_period}</h3>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        # Additional Strategy Metrics Section
+                        try:
+                            st.write(f"DEBUG Détaillées: analyzer.returns available: {analyzer.returns is not None and len(analyzer.returns) > 0}")
+
+                            # Calculate additional metrics
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
+                                # Best and Worst periods
+                                best_day = analyzer.returns.max()
+                                worst_day = analyzer.returns.min()
+
+                                # Best and Worst months
+                                try:
+                                    monthly_returns = analyzer.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+                                    st.write(f"DEBUG: monthly_returns length: {len(monthly_returns)}")
+                                    best_month = monthly_returns.max() if len(monthly_returns) > 0 else 0
+                                    worst_month = monthly_returns.min() if len(monthly_returns) > 0 else 0
+                                except Exception as e:
+                                    st.write(f"DEBUG: Erreur resample monthly: {e}")
+                                    best_month = worst_month = 0
+                                    monthly_returns = pd.Series()
+
+                                # Average periods
+                                avg_return = analyzer.returns.mean()
+                                avg_month = monthly_returns.mean() if len(monthly_returns) > 0 else 0
+
+                                # Win/Loss streaks
+                                wins = analyzer.returns > 0
+                                losses = analyzer.returns < 0
+
+                                # Calculate winning streak
+                                win_streaks = []
+                                current_streak = 0
+                                for win in wins:
+                                    if win:
+                                        current_streak += 1
+                                    else:
+                                        if current_streak > 0:
+                                            win_streaks.append(current_streak)
+                                        current_streak = 0
+                                if current_streak > 0:
+                                    win_streaks.append(current_streak)
+
+                                # Calculate losing streak
+                                loss_streaks = []
+                                current_streak = 0
+                                for loss in losses:
+                                    if loss:
+                                        current_streak += 1
+                                    else:
+                                        if current_streak > 0:
+                                            loss_streaks.append(current_streak)
+                                        current_streak = 0
+                                if current_streak > 0:
+                                    loss_streaks.append(current_streak)
+
+                                best_streak = max(win_streaks) if win_streaks else 0
+                                worst_streak = max(loss_streaks) if loss_streaks else 0
+
+                                # Positive/Negative periods
+                                positive_periods = len([x for x in analyzer.returns if x > 0])
+                                negative_periods = len([x for x in analyzer.returns if x < 0])
+                                positive_pct = (positive_periods / len(analyzer.returns)) * 100 if len(analyzer.returns) > 0 else 0
+                                negative_pct = (negative_periods / len(analyzer.returns)) * 100 if len(analyzer.returns) > 0 else 0
+
+                                # Debug des valeurs calculées
+                                st.write(f"DEBUG: best_day={best_day:.4f}, worst_day={worst_day:.4f}")
+                                st.write(f"DEBUG: best_month={best_month:.4f}, worst_month={worst_month:.4f}")
+                                st.write(f"DEBUG: positive_periods={positive_periods}, negative_periods={negative_periods}")
+                                st.write(f"DEBUG: best_streak={best_streak}, worst_streak={worst_streak}")
+
+                            elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
+                                st.write("DEBUG Détaillées: Utilise equity_curve comme fallback")
+                                # Fallback: utiliser equity_curve
+                                equity_returns = analyzer.equity_curve.pct_change().dropna()
+                                if len(equity_returns) > 0:
+                                    # Best and Worst periods
+                                    best_day = equity_returns.max()
+                                    worst_day = equity_returns.min()
+
+                                    # Best and Worst months
+                                    monthly_returns = equity_returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+                                    best_month = monthly_returns.max() if len(monthly_returns) > 0 else 0
+                                    worst_month = monthly_returns.min() if len(monthly_returns) > 0 else 0
+
+                                    # Average periods
+                                    avg_return = equity_returns.mean()
+                                    avg_month = monthly_returns.mean() if len(monthly_returns) > 0 else 0
+
+                                    # Win/Loss streaks
+                                    wins = equity_returns > 0
+                                    losses = equity_returns < 0
+
+                                    # Calculate winning streak
+                                    win_streaks = []
+                                    current_streak = 0
+                                    for win in wins:
+                                        if win:
+                                            current_streak += 1
+                                        else:
+                                            if current_streak > 0:
+                                                win_streaks.append(current_streak)
+                                            current_streak = 0
+                                    if current_streak > 0:
+                                        win_streaks.append(current_streak)
+
+                                    # Calculate losing streak
+                                    loss_streaks = []
+                                    current_streak = 0
+                                    for loss in losses:
+                                        if loss:
+                                            current_streak += 1
+                                        else:
+                                            if current_streak > 0:
+                                                loss_streaks.append(current_streak)
+                                            current_streak = 0
+                                    if current_streak > 0:
+                                        loss_streaks.append(current_streak)
+
+                                    best_streak = max(win_streaks) if win_streaks else 0
+                                    worst_streak = max(loss_streaks) if loss_streaks else 0
+
+                                    # Positive/Negative periods
+                                    positive_periods = len([x for x in equity_returns if x > 0])
+                                    negative_periods = len([x for x in equity_returns if x < 0])
+                                    positive_pct = (positive_periods / len(equity_returns)) * 100 if len(equity_returns) > 0 else 0
+                                    negative_pct = (negative_periods / len(equity_returns)) * 100 if len(equity_returns) > 0 else 0
+                                else:
+                                    best_day = worst_day = 0
+                                    best_month = worst_month = 0
+                                    avg_return = avg_month = 0
+                                    best_streak = worst_streak = 0
+                                    positive_periods = negative_periods = 0
+                                    positive_pct = negative_pct = 0
+                            else:
+                                st.write("DEBUG Détaillées: Aucune donnée disponible")
+                                best_day = worst_day = 0
+                                best_month = worst_month = 0
+                                avg_return = avg_month = 0
+                                best_streak = worst_streak = 0
+                                positive_periods = negative_periods = 0
+                                positive_pct = negative_pct = 0
+
+                        except Exception as e:
+                            st.error(f"DEBUG Détaillées: Erreur calcul: {e}")
+                            best_day = worst_day = 0
+                            best_month = worst_month = 0
+                            avg_return = avg_month = 0
+                            best_streak = worst_streak = 0
+                            positive_periods = negative_periods = 0
+                            positive_pct = negative_pct = 0
+
+                        # S'assurer que toutes les variables sont définies avant l'affichage
+                        if 'best_day' not in locals():
+                            best_day = worst_day = 0
+                            best_month = worst_month = 0
+                            avg_return = avg_month = 0
+                            best_streak = worst_streak = 0
+                            positive_periods = negative_periods = 0
+                            positive_pct = negative_pct = 0
+
+                        # Debug final des valeurs avant affichage
+                        st.write(f"DEBUG FINAL: best_day={best_day}, worst_day={worst_day}")
+                        st.write(f"DEBUG FINAL: positive_periods={positive_periods}, negative_periods={negative_periods}")
+
+                        # Display Additional Metrics in a grid
+                        st.markdown("### 📊 Métriques Détaillées")
+
+                        col1, col2, col3 = st.columns(3)
+
+                        with col1:
+                            # Test simple d'abord
+                            st.write(f"TEST: best_day = {best_day:.2%}")
+
+                            # HTML
+                            html_content = f"""
+                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
+                                <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
+                                <p style="margin: 5px 0;"><strong>Best Day:</strong> {best_day:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Best Month:</strong> {best_month:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Best Streak:</strong> {best_streak} périodes</p>
+                                <p style="margin: 5px 0;"><strong>Positive Periods:</strong> {positive_periods} ({positive_pct:.1f}%)</p>
+                            </div>
+                            """
+                            st.write("DEBUG HTML:", html_content[:100] + "...")
+                            st.markdown(html_content, unsafe_allow_html=True)
+
+                        with col2:
+                            st.markdown(f"""
+                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
+                                <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
+                                <p style="margin: 5px 0;"><strong>Worst Day:</strong> {worst_day:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Worst Month:</strong> {worst_month:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Worst Streak:</strong> {worst_streak} périodes</p>
+                                <p style="margin: 5px 0;"><strong>Negative Periods:</strong> {negative_periods} ({negative_pct:.1f}%)</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col3:
+                            st.markdown(f"""
+                            <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
+                                <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
+                                <p style="margin: 5px 0;"><strong>Avg. Day:</strong> {avg_return:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Avg. Month:</strong> {avg_month:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Total Periods:</strong> {len(analyzer.returns)}</p>
+                                <p style="margin: 5px 0;"><strong>Win Rate:</strong> {positive_pct:.1f}%</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        # Expected Returns and VaR Section
+                        st.markdown("### 🎯 Expected Returns and VaR")
+
+                        try:
+                            st.write(f"DEBUG VaR: analyzer.returns available: {analyzer.returns is not None and len(analyzer.returns) > 0}")
+
+                            # S'assurer que les returns existent et ne sont pas vides
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
+                                # Expected Daily Return
+                                expected_daily = analyzer.returns.mean()
+
+                                # Expected Monthly Return (compoundé sur 21 jours de trading)
+                                expected_monthly = (1 + expected_daily) ** 21 - 1
+
+                                # Expected Yearly Return (compoundé sur 252 jours de trading)
+                                expected_yearly = (1 + expected_daily) ** 252 - 1
+
+                                # Risk of Ruin (estimation basée sur la probabilité de perte importante)
+                                daily_vol = analyzer.returns.std()
+                                if daily_vol > 0:
+                                    # Calcul simplifié du Risk of Ruin
+                                    negative_returns = analyzer.returns[analyzer.returns < 0]
+                                    if len(negative_returns) > 0:
+                                        avg_loss = abs(negative_returns.mean())
+                                        loss_probability = len(negative_returns) / len(analyzer.returns)
+                                        # Estimation du risk of ruin (formule simplifiée)
+                                        risk_of_ruin = min(loss_probability * (avg_loss / expected_daily) if expected_daily > 0 else 0.5, 1.0)
+                                    else:
+                                        risk_of_ruin = 0.0
+                                else:
+                                    risk_of_ruin = 0.0
+
+                                # Daily VaR (5% VaR - perte maximale dans 95% des cas)
+                                daily_var = analyzer.returns.quantile(0.05)
+
+                                st.write(f"DEBUG VaR: expected_daily={expected_daily:.4f}, daily_var={daily_var:.4f}")
+
+                            elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
+                                # Fallback: calculer à partir de equity_curve
+                                equity_returns = analyzer.equity_curve.pct_change().dropna()
+                                if len(equity_returns) > 0:
+                                    expected_daily = equity_returns.mean()
+                                    expected_monthly = (1 + expected_daily) ** 21 - 1
+                                    expected_yearly = (1 + expected_daily) ** 252 - 1
+
+                                    daily_vol = equity_returns.std()
+                                    if daily_vol > 0:
+                                        negative_returns = equity_returns[equity_returns < 0]
+                                        if len(negative_returns) > 0:
+                                            avg_loss = abs(negative_returns.mean())
+                                            loss_probability = len(negative_returns) / len(equity_returns)
+                                            risk_of_ruin = min(loss_probability * (avg_loss / expected_daily) if expected_daily > 0 else 0.5, 1.0)
+                                        else:
+                                            risk_of_ruin = 0.0
+                                    else:
+                                        risk_of_ruin = 0.0
+
+                                    daily_var = equity_returns.quantile(0.05)
+                                    st.write(f"DEBUG VaR (equity): expected_daily={expected_daily:.4f}, daily_var={daily_var:.4f}")
+                                else:
+                                    expected_daily = expected_monthly = expected_yearly = 0
+                                    risk_of_ruin = 0
+                                    daily_var = 0
+                            else:
+                                expected_daily = expected_monthly = expected_yearly = 0
+                                risk_of_ruin = 0
+                                daily_var = 0
+                                st.write("DEBUG VaR: Aucune donnée disponible")
+
+                        except Exception as e:
+                            st.error(f"DEBUG VaR: Erreur calcul: {e}")
+                            expected_daily = expected_monthly = expected_yearly = 0
+                            risk_of_ruin = 0
+                            daily_var = 0
+
+                        # Display Expected Returns and VaR in a dark themed section
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+                                    padding: 25px; border-radius: 15px; color: white; margin: 20px 0;">
+                            <h3 style="text-align: center; margin: 0 0 20px 0; color: #ecf0f1;">🎯 Expected Returns and VaR</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;">
+                                <div style="text-align: center; background: rgba(52, 152, 219, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #3498db;">Expected Daily %</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{expected_daily:.2%}</h2>
+                                </div>
+                                <div style="text-align: center; background: rgba(46, 204, 113, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #2ecc71;">Expected Monthly %</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{expected_monthly:.2%}</h2>
+                                </div>
+                                <div style="text-align: center; background: rgba(155, 89, 182, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #9b59b6;">Expected Yearly %</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{expected_yearly:.2%}</h2>
+                                </div>
+                                <div style="text-align: center; background: rgba(231, 76, 60, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #e74c3c;">Risk of Ruin</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{risk_of_ruin:.2%}</h2>
+                                </div>
+                                <div style="text-align: center; background: rgba(241, 196, 15, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #f1c40f;">Daily VaR</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{daily_var:.2%}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        st.markdown("---")
+
                         # Afficher métriques clés en cartes stylées
                         st.markdown("## 📈 Métriques Principales")
 
@@ -1230,6 +1712,140 @@ def main():
                                 for k, v in metrics.items()
                             ])
                             st.dataframe(metrics_df, use_container_width=True)
+
+                            # Section détaillée des métriques
+                            with st.expander("📚 Guide détaillé des métriques"):
+                                st.markdown("""
+                                ## 📊 **Guide Complet des Métriques Trading**
+
+                                ### **🎯 Métriques de Performance**
+
+                                **📈 CAGR (Compound Annual Growth Rate)**
+                                - **Définition :** Taux de croissance annuel composé
+                                - **Calcul :** (Valeur finale/Valeur initiale)^(1/années) - 1
+                                - **Bon niveau :** > 10% excellent, > 20% exceptionnel
+                                - **Usage :** Mesure la croissance annuelle moyenne
+
+                                **⚡ Sharpe Ratio**
+                                - **Définition :** Ratio rendement/risque ajusté
+                                - **Calcul :** (Rendement - Taux sans risque) / Volatilité
+                                - **Interprétation :** > 1 = bon, > 1.5 = excellent, > 2 = exceptionnel
+                                - **Usage :** Compare l'efficacité risque/rendement
+
+                                **🛡️ Sortino Ratio**
+                                - **Définition :** Sharpe ajusté pour le downside uniquement
+                                - **Calcul :** Rendement / Volatilité des pertes
+                                - **Avantage :** Ne pénalise pas la volatilité haussière
+                                - **Bon niveau :** > 1.5 = très bon
+
+                                **🎪 Calmar Ratio**
+                                - **Définition :** CAGR / Max Drawdown
+                                - **Usage :** Mesure l'efficacité par rapport au pire scénario
+                                - **Bon niveau :** > 1 = bon, > 3 = excellent
+                                - **Avantage :** Focus sur le contrôle du risque
+
+                                ### **📉 Métriques de Risque**
+
+                                **💥 Max Drawdown**
+                                - **Définition :** Perte maximale depuis un sommet
+                                - **Calcul :** (Valeur max - Valeur min suivante) / Valeur max
+                                - **Bon niveau :** < 10% = excellent, < 20% = acceptable
+                                - **Critique :** Mesure le pire scénario vécu
+
+                                **📊 Volatility**
+                                - **Définition :** Écart-type annualisé des rendements
+                                - **Calcul :** Écart-type × √252 jours
+                                - **Interprétation :** Mesure l'amplitude des variations
+                                - **Trading :** 15-40% = normal, > 50% = très risqué
+
+                                **⚠️ VaR (Value at Risk)**
+                                - **Définition :** Perte maximale probable (95% confiance)
+                                - **Usage :** "5% de chance de perdre plus que X%"
+                                - **Gestion risque :** Limite d'exposition quotidienne
+                                - **Calcul :** 5ème percentile des rendements
+
+                                **🔻 CVaR (Conditional VaR)**
+                                - **Définition :** Perte moyenne au-delà du VaR
+                                - **Usage :** "Quand les 5% pires jours arrivent, perte moyenne = X%"
+                                - **Avantage :** Mesure le risque de queue (tail risk)
+                                - **Plus conservateur :** Que le VaR simple
+
+                                ### **🎲 Métriques de Distribution**
+
+                                **📈 Skewness (Asymétrie)**
+                                - **Définition :** Mesure l'asymétrie de la distribution
+                                - **Positif :** Plus de gros gains que de grosses pertes ✅
+                                - **Négatif :** Plus de grosses pertes que de gros gains ❌
+                                - **Idéal :** Positif pour les stratégies
+
+                                **🏔️ Kurtosis (Aplatissement)**
+                                - **Définition :** Mesure la "queue" de la distribution
+                                - **Positif :** Plus d'événements extrêmes que normal
+                                - **Négatif :** Moins d'événements extrêmes ✅
+                                - **Trading :** Négatif = moins de risques extrêmes
+
+                                ### **💼 Métriques de Trading**
+
+                                **🎯 Win Rate**
+                                - **Définition :** Pourcentage de trades/périodes gagnants
+                                - **Calcul :** Trades gagnants / Total trades
+                                - **Paradoxe :** Peut être faible avec excellent R/R
+                                - **Équilibre :** 40-60% = bon, mais R/R plus important
+
+                                **💰 Profit Factor**
+                                - **Définition :** Gains bruts / Pertes brutes
+                                - **Calcul :** Somme(gains) / |Somme(pertes)|
+                                - **Interprétation :** "Chaque € perdu génère X€ de gain"
+                                - **Excellent :** > 2.0, > 3.0 = exceptionnel
+
+                                **🔄 Recovery Factor**
+                                - **Définition :** Rendement total / Max Drawdown
+                                - **Usage :** Vitesse de récupération après pertes
+                                - **Bon niveau :** > 5 = excellent récupération
+                                - **Stratégie :** Plus c'est haut, mieux c'est
+
+                                **⚖️ Omega Ratio**
+                                - **Définition :** Probabilité de gains vs pertes (seuil = 0%)
+                                - **Calcul :** Gains(>0%) / |Pertes(<0%)|
+                                - **Usage :** Alternative au Profit Factor
+                                - **Avantage :** Prend en compte toute la distribution
+
+                                ### **🎯 Métriques Personnalisées**
+
+                                **🏆 RR Ratio Avg (Risk/Reward)**
+                                - **Définition :** Rapport gain moyen / perte moyenne
+                                - **Calcul :** |Gain moyen par trade| / |Perte moyenne par trade|
+                                - **Excellent :** > 2 = très bon, > 3 = exceptionnel
+                                - **Stratégie :** Compense un Win Rate faible
+
+                                ---
+
+                                ## 📈 **Comment Interpréter Votre Performance**
+
+                                ### **🟢 Stratégie Excellente :**
+                                - Sharpe > 1.5 ✅
+                                - CAGR > 15% ✅
+                                - Max DD < 15% ✅
+                                - Profit Factor > 2 ✅
+                                - RR Ratio > 2 ✅
+
+                                ### **🟡 Stratégie Correcte :**
+                                - Sharpe 1-1.5
+                                - CAGR 8-15%
+                                - Max DD 15-25%
+                                - Profit Factor 1.5-2
+                                - RR Ratio 1-2
+
+                                ### **🔴 À Améliorer :**
+                                - Sharpe < 1
+                                - CAGR < 8%
+                                - Max DD > 25%
+                                - Profit Factor < 1.5
+                                - RR Ratio < 1
+
+                                **💡 Astuce :** Une stratégie avec Win Rate faible (30-40%) peut être excellente si RR Ratio > 3 !
+                                """)
+
 
                         # Générer et télécharger rapport
                         html_report = analyzer.generate_downloadable_report(metrics)
