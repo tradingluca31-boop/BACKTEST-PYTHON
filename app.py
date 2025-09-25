@@ -1216,9 +1216,15 @@ def main():
                                 worst_day = analyzer.returns.min()
 
                                 # Best and Worst months
-                                monthly_returns = analyzer.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
-                                best_month = monthly_returns.max() if len(monthly_returns) > 0 else 0
-                                worst_month = monthly_returns.min() if len(monthly_returns) > 0 else 0
+                                try:
+                                    monthly_returns = analyzer.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+                                    st.write(f"DEBUG: monthly_returns length: {len(monthly_returns)}")
+                                    best_month = monthly_returns.max() if len(monthly_returns) > 0 else 0
+                                    worst_month = monthly_returns.min() if len(monthly_returns) > 0 else 0
+                                except Exception as e:
+                                    st.write(f"DEBUG: Erreur resample monthly: {e}")
+                                    best_month = worst_month = 0
+                                    monthly_returns = pd.Series()
 
                                 # Average periods
                                 avg_return = analyzer.returns.mean()
@@ -1262,6 +1268,12 @@ def main():
                                 negative_periods = len([x for x in analyzer.returns if x < 0])
                                 positive_pct = (positive_periods / len(analyzer.returns)) * 100 if len(analyzer.returns) > 0 else 0
                                 negative_pct = (negative_periods / len(analyzer.returns)) * 100 if len(analyzer.returns) > 0 else 0
+
+                                # Debug des valeurs calculées
+                                st.write(f"DEBUG: best_day={best_day:.4f}, worst_day={worst_day:.4f}")
+                                st.write(f"DEBUG: best_month={best_month:.4f}, worst_month={worst_month:.4f}")
+                                st.write(f"DEBUG: positive_periods={positive_periods}, negative_periods={negative_periods}")
+                                st.write(f"DEBUG: best_streak={best_streak}, worst_streak={worst_streak}")
 
                             elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
                                 st.write("DEBUG Détaillées: Utilise equity_curve comme fallback")
