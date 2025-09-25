@@ -661,6 +661,91 @@ class BacktestAnalyzerPro:
 
         return fig
 
+    def create_monthly_returns_distribution(self):
+        """
+        Distribution des rendements mensuels avec courbe normale
+        """
+        try:
+            # Calculer les vrais rendements mensuels
+            monthly_returns = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+            monthly_returns_pct = monthly_returns * 100  # Convertir en pourcentage
+
+            if len(monthly_returns_pct) < 2:
+                return go.Figure()
+
+            # Statistiques réelles
+            mean_return = monthly_returns_pct.mean()
+            std_return = monthly_returns_pct.std()
+
+            # Créer l'histogramme
+            fig = go.Figure()
+
+            # Histogramme des rendements mensuels réels
+            fig.add_trace(go.Histogram(
+                x=monthly_returns_pct,
+                nbinsx=min(30, len(monthly_returns_pct)),
+                name='Monthly Returns',
+                marker_color='#00d4aa',
+                opacity=0.7,
+                histnorm='probability density',
+                showlegend=False
+            ))
+
+            # Créer la courbe normale basée sur les vraies statistiques
+            x_range = np.linspace(monthly_returns_pct.min() - std_return,
+                                monthly_returns_pct.max() + std_return, 1000)
+
+            # Fonction de densité de probabilité normale
+            normal_curve = (1 / (std_return * np.sqrt(2 * np.pi))) * \
+                          np.exp(-0.5 * ((x_range - mean_return) / std_return) ** 2)
+
+            # Ajouter la courbe normale
+            fig.add_trace(go.Scatter(
+                x=x_range,
+                y=normal_curve,
+                mode='lines',
+                name='Normal Distribution',
+                line=dict(color='white', width=3),
+                showlegend=False
+            ))
+
+            # Ligne verticale pour la moyenne
+            fig.add_vline(
+                x=mean_return,
+                line=dict(color='red', dash='dash', width=2),
+                annotation_text=f"Mean: {mean_return:.1f}%"
+            )
+
+            # Mise à jour du layout
+            fig.update_layout(
+                title={
+                    'text': f'Distribution of Monthly Returns<br><span style="font-size:14px">{monthly_returns.index[0].strftime("%Y")} - {monthly_returns.index[-1].strftime("%Y")}</span>',
+                    'x': 0.5,
+                    'font': {'size': 18, 'color': 'white'}
+                },
+                xaxis_title='Monthly Returns (%)',
+                yaxis_title='Occurrences',
+                template='plotly_dark',
+                height=400,
+                plot_bgcolor='#1a1a1a',
+                paper_bgcolor='#1a1a1a',
+                font=dict(color='white'),
+                xaxis=dict(
+                    gridcolor='#333333',
+                    tickformat='.0f',
+                    ticksuffix='%'
+                ),
+                yaxis=dict(
+                    gridcolor='#333333'
+                )
+            )
+
+            return fig
+
+        except Exception as e:
+            st.warning(f"Erreur création distribution mensuelle: {e}")
+            return go.Figure()
+
     def generate_downloadable_report(self, metrics):
         """
         Générer un rapport HTML téléchargeable
@@ -2224,6 +2309,9 @@ def main():
 
                             st.subheader("🔥 Heatmap Rendements Mensuels")
                             st.plotly_chart(analyzer.create_monthly_heatmap(), use_container_width=True)
+
+                            st.subheader("📊 Distribution des Rendements Mensuels")
+                            st.plotly_chart(analyzer.create_monthly_returns_distribution(), use_container_width=True)
 
                         if show_advanced:
                             # Tableau complet des métriques
