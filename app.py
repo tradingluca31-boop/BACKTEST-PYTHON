@@ -1280,6 +1280,79 @@ def main():
                             </div>
                             """, unsafe_allow_html=True)
 
+                        # Expected Returns and VaR Section
+                        st.markdown("### 🎯 Expected Returns and VaR")
+
+                        try:
+                            if len(analyzer.returns) > 0:
+                                # Expected Daily Return
+                                expected_daily = analyzer.returns.mean()
+
+                                # Expected Monthly Return (compoundé sur 21 jours de trading)
+                                expected_monthly = (1 + expected_daily) ** 21 - 1
+
+                                # Expected Yearly Return (compoundé sur 252 jours de trading)
+                                expected_yearly = (1 + expected_daily) ** 252 - 1
+
+                                # Risk of Ruin (estimation basée sur la probabilité de perte importante)
+                                # Approximation : probabilité de drawdown > 50%
+                                daily_vol = analyzer.returns.std()
+                                if daily_vol > 0:
+                                    # Calcul simplifié du Risk of Ruin
+                                    negative_returns = analyzer.returns[analyzer.returns < 0]
+                                    if len(negative_returns) > 0:
+                                        avg_loss = abs(negative_returns.mean())
+                                        loss_probability = len(negative_returns) / len(analyzer.returns)
+                                        # Estimation du risk of ruin (formule simplifiée)
+                                        risk_of_ruin = min(loss_probability * (avg_loss / expected_daily) if expected_daily > 0 else 0.5, 1.0)
+                                    else:
+                                        risk_of_ruin = 0.0
+                                else:
+                                    risk_of_ruin = 0.0
+
+                                # Daily VaR (5% VaR - perte maximale dans 95% des cas)
+                                daily_var = np.percentile(analyzer.returns, 5) if len(analyzer.returns) > 0 else 0
+
+                            else:
+                                expected_daily = expected_monthly = expected_yearly = 0
+                                risk_of_ruin = 0
+                                daily_var = 0
+
+                        except Exception as e:
+                            expected_daily = expected_monthly = expected_yearly = 0
+                            risk_of_ruin = 0
+                            daily_var = 0
+
+                        # Display Expected Returns and VaR in a dark themed section
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+                                    padding: 25px; border-radius: 15px; color: white; margin: 20px 0;">
+                            <h3 style="text-align: center; margin: 0 0 20px 0; color: #ecf0f1;">🎯 Expected Returns and VaR</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;">
+                                <div style="text-align: center; background: rgba(52, 152, 219, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #3498db;">Expected Daily %</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{expected_daily:.2%}</h2>
+                                </div>
+                                <div style="text-align: center; background: rgba(46, 204, 113, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #2ecc71;">Expected Monthly %</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{expected_monthly:.2%}</h2>
+                                </div>
+                                <div style="text-align: center; background: rgba(155, 89, 182, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #9b59b6;">Expected Yearly %</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{expected_yearly:.2%}</h2>
+                                </div>
+                                <div style="text-align: center; background: rgba(231, 76, 60, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #e74c3c;">Risk of Ruin</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{risk_of_ruin:.2%}</h2>
+                                </div>
+                                <div style="text-align: center; background: rgba(241, 196, 15, 0.2); padding: 15px; border-radius: 10px;">
+                                    <h4 style="margin: 5px 0; color: #f1c40f;">Daily VaR</h4>
+                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{daily_var:.2%}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
                         st.markdown("---")
 
                         # Afficher métriques clés en cartes stylées
