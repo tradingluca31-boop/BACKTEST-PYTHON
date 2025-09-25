@@ -305,9 +305,24 @@ class BacktestAnalyzerPro:
                     from scipy import stats as scipy_stats
                     metrics['Skewness'] = scipy_stats.skew(returns)
                     metrics['Kurtosis'] = scipy_stats.kurtosis(returns)
+
+                    # Monthly Returns Distribution
+                    monthly_returns = self.returns.resample('ME').apply(lambda x: (1 + x).prod() - 1)
+                    if len(monthly_returns) > 1:
+                        metrics['Monthly_Volatility'] = monthly_returns.std()
+                        metrics['Monthly_Skewness'] = scipy_stats.skew(monthly_returns.dropna())
+                        metrics['Monthly_Kurtosis'] = scipy_stats.kurtosis(monthly_returns.dropna())
+                    else:
+                        metrics['Monthly_Volatility'] = 0
+                        metrics['Monthly_Skewness'] = 0
+                        metrics['Monthly_Kurtosis'] = 0
+
                 except:
                     metrics['Skewness'] = 0
                     metrics['Kurtosis'] = 0
+                    metrics['Monthly_Volatility'] = 0
+                    metrics['Monthly_Skewness'] = 0
+                    metrics['Monthly_Kurtosis'] = 0
 
                 metrics['Recovery_Factor'] = total_return / metrics['Max_Drawdown'] if metrics['Max_Drawdown'] > 0 else 0
 
@@ -1961,6 +1976,67 @@ def main():
                             <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Average Drawdown Days</h4>
                                 <h2 style="margin: 10px 0; color: #f56565;">{metrics.get('Average_Drawdown_Days', 0)}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        st.markdown("---")
+
+                        # === RETURNS DISTRIBUTION SECTIONS ===
+                        st.markdown("## 📊 Returns Distribution")
+
+                        col1, col2, col3 = st.columns(3)
+
+                        with col1:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Volatilité</h4>
+                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Volatility', 0):.2%}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col2:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Skew</h4>
+                                <h2 style="margin: 10px 0; color: #68d391;">{metrics.get('Skewness', 0):.3f}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col3:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Kurtosis</h4>
+                                <h2 style="margin: 10px 0; color: #fbb6ce;">{metrics.get('Kurtosis', 0):.3f}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        st.markdown("---")
+
+                        st.markdown("## 📊 Monthly Returns Distribution")
+
+                        col1, col2, col3 = st.columns(3)
+
+                        with col1:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #ff9a56 0%, #ff6b9d 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Volatilité</h4>
+                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Monthly_Volatility', 0):.2%}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col2:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #ff9a56 0%, #ff6b9d 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Skew</h4>
+                                <h2 style="margin: 10px 0; color: #68d391;">{metrics.get('Monthly_Skewness', 0):.3f}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col3:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #ff9a56 0%, #ff6b9d 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Kurtosis</h4>
+                                <h2 style="margin: 10px 0; color: #fbb6ce;">{metrics.get('Monthly_Kurtosis', 0):.3f}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
