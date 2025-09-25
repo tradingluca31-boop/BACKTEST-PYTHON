@@ -365,6 +365,72 @@ class BacktestAnalyzerPro:
             else:
                 metrics['Probabilistic_Sharpe_Ratio'] = 0.5
 
+            # === DRAWDOWN METRICS ===
+
+            if len(self.returns) > 0:
+                # Calculer la courbe de cumul pour les drawdowns
+                cumulative_returns = (1 + self.returns).cumprod()
+                running_max = cumulative_returns.expanding().max()
+                drawdowns = (cumulative_returns - running_max) / running_max
+
+                # Max Drawdown (déjà calculé mais on s'assure)
+                metrics['Max_Drawdown'] = abs(drawdowns.min())
+
+                # Longest Drawdown (en nombre de trades)
+                # Identifier les périodes de drawdown (< 0)
+                in_drawdown = drawdowns < 0
+                if in_drawdown.any():
+                    # Grouper les périodes consécutives de drawdown
+                    drawdown_periods = []
+                    current_length = 0
+
+                    for is_dd in in_drawdown:
+                        if is_dd:
+                            current_length += 1
+                        else:
+                            if current_length > 0:
+                                drawdown_periods.append(current_length)
+                                current_length = 0
+
+                    # Ajouter la dernière période si elle se termine par un drawdown
+                    if current_length > 0:
+                        drawdown_periods.append(current_length)
+
+                    metrics['Longest_Drawdown'] = max(drawdown_periods) if drawdown_periods else 0
+                    metrics['Average_Drawdown'] = sum(drawdown_periods) / len(drawdown_periods) if drawdown_periods else 0
+                else:
+                    metrics['Longest_Drawdown'] = 0
+                    metrics['Average_Drawdown'] = 0
+
+                # Average Drawdown (moyenne des drawdowns négatifs seulement)
+                negative_drawdowns = drawdowns[drawdowns < 0]
+                if len(negative_drawdowns) > 0:
+                    metrics['Average_Drawdown_Pct'] = abs(negative_drawdowns.mean())
+                else:
+                    metrics['Average_Drawdown_Pct'] = 0
+
+                # Average Drawdown Days (calculé en jours entre dates)
+                if len(self.returns) > 1:
+                    # Calculer la durée moyenne en jours calendaires
+                    total_period_days = (self.returns.index[-1] - self.returns.index[0]).days
+                    total_trades = len(self.returns)
+
+                    if total_trades > 0 and total_period_days > 0:
+                        # Durée moyenne par trade en jours
+                        avg_days_per_trade = total_period_days / total_trades
+                        # Durée moyenne des drawdowns en jours
+                        metrics['Average_Drawdown_Days'] = int(metrics['Average_Drawdown'] * avg_days_per_trade) if metrics['Average_Drawdown'] > 0 else 0
+                    else:
+                        metrics['Average_Drawdown_Days'] = 0
+                else:
+                    metrics['Average_Drawdown_Days'] = 0
+            else:
+                metrics['Max_Drawdown'] = 0
+                metrics['Longest_Drawdown'] = 0
+                metrics['Average_Drawdown'] = 0
+                metrics['Average_Drawdown_Pct'] = 0
+                metrics['Average_Drawdown_Days'] = 0
+
             # Métriques personnalisées selon les targets
             if target_dd is not None:
                 actual_dd = metrics.get('Max_Drawdown', 0)
@@ -1868,6 +1934,46 @@ def main():
 
                         st.markdown("---")
 
+                        # === DRAWDOWNS SECTION ===
+                        st.markdown("## 📉 Drawdowns")
+
+                        col1, col2, col3, col4 = st.columns(4)
+
+                        with col1:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Max Drawdown</h4>
+                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Max_Drawdown', 0):.2%}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col2:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Longest Drawdown</h4>
+                                <h2 style="margin: 10px 0; color: #f56565;">{metrics.get('Longest_Drawdown', 0)}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col3:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Average Drawdown</h4>
+                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Average_Drawdown_Pct', 0):.2%}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col4:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Average Drawdown</h4>
+                                <h4 style="margin: 0; font-size: 12px; opacity: 0.8;">Days</h4>
+                                <h2 style="margin: 10px 0; color: #f56565;">{metrics.get('Average_Drawdown_Days', 0)}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        st.markdown("---")
+
                         # Afficher métriques clés en cartes stylées
                         st.markdown("## 📈 Métriques Principales")
 
@@ -1884,8 +1990,8 @@ def main():
                         with col2:
                             st.markdown(f"""
                             <div class="metric-card">
-                                <h3>Sharpe Ratio</h3>
-                                <h2>{metrics.get('Sharpe', 0):.2f}</h2>
+                                <h3>Win Rate</h3>
+                                <h2>{metrics.get('Win_Rate', 0):.2%}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -1905,20 +2011,20 @@ def main():
                             </div>
                             """, unsafe_allow_html=True)
 
-                        # Métriques secondaires
+                        # Métriques secondaires (sans doublons)
                         col1, col2, col3, col4 = st.columns(4)
 
                         with col1:
-                            st.metric("Win Rate", f"{metrics.get('Win_Rate', 0):.2%}")
-
-                        with col2:
                             st.metric("Profit Factor", f"{metrics.get('Profit_Factor', 0):.2f}")
 
+                        with col2:
+                            st.metric("Volatilité", f"{metrics.get('Volatility', 0):.2%}")
+
                         with col3:
-                            st.metric("Sortino Ratio", f"{metrics.get('Sortino', 0):.2f}")
+                            st.metric("VaR (5%)", f"{metrics.get('VaR', 0):.2%}")
 
                         with col4:
-                            st.metric("Volatilité", f"{metrics.get('Volatility', 0):.2%}")
+                            st.metric("Recovery Factor", f"{metrics.get('Recovery_Factor', 0):.2f}")
 
                         # Affichage des métriques personnalisées si définies
                         if target_dd is not None or (target_profit is not None and target_profit_euro is not None) or target_profit_total_euro is not None:
