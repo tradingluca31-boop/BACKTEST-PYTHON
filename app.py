@@ -1272,6 +1272,140 @@ def main():
                             ])
                             st.dataframe(metrics_df, use_container_width=True)
 
+                            # Section détaillée des métriques
+                            with st.expander("📚 Guide détaillé des métriques"):
+                                st.markdown("""
+                                ## 📊 **Guide Complet des Métriques Trading**
+
+                                ### **🎯 Métriques de Performance**
+
+                                **📈 CAGR (Compound Annual Growth Rate)**
+                                - **Définition :** Taux de croissance annuel composé
+                                - **Calcul :** (Valeur finale/Valeur initiale)^(1/années) - 1
+                                - **Bon niveau :** > 10% excellent, > 20% exceptionnel
+                                - **Usage :** Mesure la croissance annuelle moyenne
+
+                                **⚡ Sharpe Ratio**
+                                - **Définition :** Ratio rendement/risque ajusté
+                                - **Calcul :** (Rendement - Taux sans risque) / Volatilité
+                                - **Interprétation :** > 1 = bon, > 1.5 = excellent, > 2 = exceptionnel
+                                - **Usage :** Compare l'efficacité risque/rendement
+
+                                **🛡️ Sortino Ratio**
+                                - **Définition :** Sharpe ajusté pour le downside uniquement
+                                - **Calcul :** Rendement / Volatilité des pertes
+                                - **Avantage :** Ne pénalise pas la volatilité haussière
+                                - **Bon niveau :** > 1.5 = très bon
+
+                                **🎪 Calmar Ratio**
+                                - **Définition :** CAGR / Max Drawdown
+                                - **Usage :** Mesure l'efficacité par rapport au pire scénario
+                                - **Bon niveau :** > 1 = bon, > 3 = excellent
+                                - **Avantage :** Focus sur le contrôle du risque
+
+                                ### **📉 Métriques de Risque**
+
+                                **💥 Max Drawdown**
+                                - **Définition :** Perte maximale depuis un sommet
+                                - **Calcul :** (Valeur max - Valeur min suivante) / Valeur max
+                                - **Bon niveau :** < 10% = excellent, < 20% = acceptable
+                                - **Critique :** Mesure le pire scénario vécu
+
+                                **📊 Volatility**
+                                - **Définition :** Écart-type annualisé des rendements
+                                - **Calcul :** Écart-type × √252 jours
+                                - **Interprétation :** Mesure l'amplitude des variations
+                                - **Trading :** 15-40% = normal, > 50% = très risqué
+
+                                **⚠️ VaR (Value at Risk)**
+                                - **Définition :** Perte maximale probable (95% confiance)
+                                - **Usage :** "5% de chance de perdre plus que X%"
+                                - **Gestion risque :** Limite d'exposition quotidienne
+                                - **Calcul :** 5ème percentile des rendements
+
+                                **🔻 CVaR (Conditional VaR)**
+                                - **Définition :** Perte moyenne au-delà du VaR
+                                - **Usage :** "Quand les 5% pires jours arrivent, perte moyenne = X%"
+                                - **Avantage :** Mesure le risque de queue (tail risk)
+                                - **Plus conservateur :** Que le VaR simple
+
+                                ### **🎲 Métriques de Distribution**
+
+                                **📈 Skewness (Asymétrie)**
+                                - **Définition :** Mesure l'asymétrie de la distribution
+                                - **Positif :** Plus de gros gains que de grosses pertes ✅
+                                - **Négatif :** Plus de grosses pertes que de gros gains ❌
+                                - **Idéal :** Positif pour les stratégies
+
+                                **🏔️ Kurtosis (Aplatissement)**
+                                - **Définition :** Mesure la "queue" de la distribution
+                                - **Positif :** Plus d'événements extrêmes que normal
+                                - **Négatif :** Moins d'événements extrêmes ✅
+                                - **Trading :** Négatif = moins de risques extrêmes
+
+                                ### **💼 Métriques de Trading**
+
+                                **🎯 Win Rate**
+                                - **Définition :** Pourcentage de trades/périodes gagnants
+                                - **Calcul :** Trades gagnants / Total trades
+                                - **Paradoxe :** Peut être faible avec excellent R/R
+                                - **Équilibre :** 40-60% = bon, mais R/R plus important
+
+                                **💰 Profit Factor**
+                                - **Définition :** Gains bruts / Pertes brutes
+                                - **Calcul :** Somme(gains) / |Somme(pertes)|
+                                - **Interprétation :** "Chaque € perdu génère X€ de gain"
+                                - **Excellent :** > 2.0, > 3.0 = exceptionnel
+
+                                **🔄 Recovery Factor**
+                                - **Définition :** Rendement total / Max Drawdown
+                                - **Usage :** Vitesse de récupération après pertes
+                                - **Bon niveau :** > 5 = excellent récupération
+                                - **Stratégie :** Plus c'est haut, mieux c'est
+
+                                **⚖️ Omega Ratio**
+                                - **Définition :** Probabilité de gains vs pertes (seuil = 0%)
+                                - **Calcul :** Gains(>0%) / |Pertes(<0%)|
+                                - **Usage :** Alternative au Profit Factor
+                                - **Avantage :** Prend en compte toute la distribution
+
+                                ### **🎯 Métriques Personnalisées**
+
+                                **🏆 RR Ratio Avg (Risk/Reward)**
+                                - **Définition :** Rapport gain moyen / perte moyenne
+                                - **Calcul :** |Gain moyen par trade| / |Perte moyenne par trade|
+                                - **Excellent :** > 2 = très bon, > 3 = exceptionnel
+                                - **Stratégie :** Compense un Win Rate faible
+
+                                ---
+
+                                ## 📈 **Comment Interpréter Votre Performance**
+
+                                ### **🟢 Stratégie Excellente :**
+                                - Sharpe > 1.5 ✅
+                                - CAGR > 15% ✅
+                                - Max DD < 15% ✅
+                                - Profit Factor > 2 ✅
+                                - RR Ratio > 2 ✅
+
+                                ### **🟡 Stratégie Correcte :**
+                                - Sharpe 1-1.5
+                                - CAGR 8-15%
+                                - Max DD 15-25%
+                                - Profit Factor 1.5-2
+                                - RR Ratio 1-2
+
+                                ### **🔴 À Améliorer :**
+                                - Sharpe < 1
+                                - CAGR < 8%
+                                - Max DD > 25%
+                                - Profit Factor < 1.5
+                                - RR Ratio < 1
+
+                                **💡 Astuce :** Une stratégie avec Win Rate faible (30-40%) peut être excellente si RR Ratio > 3 !
+                                """)
+
+
                         # Générer et télécharger rapport
                         html_report = analyzer.generate_downloadable_report(metrics)
 
