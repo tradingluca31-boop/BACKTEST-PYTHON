@@ -622,6 +622,138 @@ class BacktestAnalyzerPro:
             'outlier_loss_ratio': outlier_loss_ratio
         }
 
+    def calculate_average_wins_losses(self):
+        """
+        Calculer les moyennes des gains et pertes par période
+        """
+        if self.returns is None or len(self.returns) == 0:
+            return {
+                'avg_winning_month': 0.0,
+                'avg_losing_month': 0.0,
+                'avg_winning_trade': 0.0,
+                'avg_losing_trade': 0.0
+            }
+
+        returns = self.returns.dropna()
+        if len(returns) == 0:
+            return {
+                'avg_winning_month': 0.0,
+                'avg_losing_month': 0.0,
+                'avg_winning_trade': 0.0,
+                'avg_losing_trade': 0.0
+            }
+
+        # Calculs mensuels
+        try:
+            monthly_returns = returns.resample('MS').apply(lambda x: (1 + x).prod() - 1)
+            monthly_returns = monthly_returns.dropna()
+
+            if len(monthly_returns) > 0:
+                winning_months = monthly_returns[monthly_returns > 0]
+                losing_months = monthly_returns[monthly_returns < 0]
+
+                avg_winning_month = winning_months.mean() if len(winning_months) > 0 else 0.0
+                avg_losing_month = losing_months.mean() if len(losing_months) > 0 else 0.0
+
+                # Vérifier si les valeurs sont NaN et les remplacer par 0
+                if pd.isna(avg_winning_month):
+                    avg_winning_month = 0.0
+                if pd.isna(avg_losing_month):
+                    avg_losing_month = 0.0
+            else:
+                avg_winning_month = 0.0
+                avg_losing_month = 0.0
+        except Exception as e:
+            # Si on ne peut pas calculer mensuellement, utiliser des moyennes simples
+            winning_daily = returns[returns > 0]
+            losing_daily = returns[returns < 0]
+
+            avg_winning_month = winning_daily.mean() * 21 if len(winning_daily) > 0 else 0.0  # ~21 jours/mois
+            avg_losing_month = losing_daily.mean() * 21 if len(losing_daily) > 0 else 0.0
+
+        # Calculs par trade (utiliser les returns individuels comme proxy)
+        winning_trades = returns[returns > 0]
+        losing_trades = returns[returns < 0]
+
+        avg_winning_trade = winning_trades.mean() if len(winning_trades) > 0 else 0.0
+        avg_losing_trade = losing_trades.mean() if len(losing_trades) > 0 else 0.0
+
+        return {
+            'avg_winning_month': avg_winning_month,
+            'avg_losing_month': avg_losing_month,
+            'avg_winning_trade': avg_winning_trade,
+            'avg_losing_trade': avg_losing_trade
+        }
+
+    def calculate_winning_rates(self):
+        """
+        Calculer les taux de réussite par période
+        """
+        if self.returns is None or len(self.returns) == 0:
+            return {
+                'winning_days': 0.0,
+                'winning_months': 0.0,
+                'winning_quarters': 0.0,
+                'winning_years': 0.0,
+                'win_rate': 0.0
+            }
+
+        returns = self.returns.dropna()
+        if len(returns) == 0:
+            return {
+                'winning_days': 0.0,
+                'winning_months': 0.0,
+                'winning_quarters': 0.0,
+                'winning_years': 0.0,
+                'win_rate': 0.0
+            }
+
+        # Winning Days (trades individuels)
+        winning_days_count = len(returns[returns > 0])
+        total_days = len(returns[returns != 0])  # Exclure les jours neutres
+        winning_days_rate = winning_days_count / total_days if total_days > 0 else 0.0
+
+        # Winning Months
+        try:
+            monthly_returns = returns.resample('MS').apply(lambda x: (1 + x).prod() - 1)
+            monthly_returns = monthly_returns.dropna()
+            winning_months_count = len(monthly_returns[monthly_returns > 0])
+            total_months = len(monthly_returns[monthly_returns != 0])
+            winning_months_rate = winning_months_count / total_months if total_months > 0 else 0.0
+        except:
+            winning_months_rate = 0.0
+
+        # Winning Quarters
+        try:
+            quarterly_returns = returns.resample('QS').apply(lambda x: (1 + x).prod() - 1)
+            quarterly_returns = quarterly_returns.dropna()
+            winning_quarters_count = len(quarterly_returns[quarterly_returns > 0])
+            total_quarters = len(quarterly_returns[quarterly_returns != 0])
+            winning_quarters_rate = winning_quarters_count / total_quarters if total_quarters > 0 else 0.0
+        except:
+            winning_quarters_rate = 0.0
+
+        # Winning Years
+        try:
+            yearly_returns = returns.resample('YS').apply(lambda x: (1 + x).prod() - 1)
+            yearly_returns = yearly_returns.dropna()
+            winning_years_count = len(yearly_returns[yearly_returns > 0])
+            total_years = len(yearly_returns[yearly_returns != 0])
+            winning_years_rate = winning_years_count / total_years if total_years > 0 else 0.0
+        except:
+            winning_years_rate = 0.0
+
+        # Win Rate global (identique aux winning days pour les trades)
+        win_rate = winning_days_rate
+
+        return {
+            'winning_days': winning_days_rate,
+            'winning_months': winning_months_rate,
+            'winning_quarters': winning_quarters_rate,
+            'winning_years': winning_years_rate,
+            'win_rate': win_rate
+        }
+
     def create_equity_curve_plot(self):
         """
         Graphique equity curve professionnel
@@ -2587,6 +2719,109 @@ def main():
                             **Outlier Loss Ratio**: Proportion des pertes qui sont considérées comme des outliers (< moyenne - 2σ).
                             Une valeur élevée indique des pertes exceptionnelles fréquentes.
                             """)
+
+                        st.markdown("---")
+
+                        # Section Average Wins and Losses
+                        st.markdown("## 💰 Average Wins and Losses")
+
+                        # Calculer les moyennes
+                        avg_stats = analyzer.calculate_average_wins_losses()
+
+                        # Affichage en quatre colonnes
+                        avg_col1, avg_col2, avg_col3, avg_col4 = st.columns(4)
+
+                        with avg_col1:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                                        color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h5 style="margin: 0; color: white; font-size: 0.9em;">Average Winning Month</h5>
+                                <h1 style="margin: 5px 0; color: white; font-size: 1.8em;">{:.2%}</h1>
+                            </div>
+                            """.format(avg_stats['avg_winning_month']), unsafe_allow_html=True)
+
+                        with avg_col2:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #dc3545, #c82333);
+                                        color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h5 style="margin: 0; color: white; font-size: 0.9em;">Average Losing Month</h5>
+                                <h1 style="margin: 5px 0; color: white; font-size: 1.8em;">{:.2%}</h1>
+                            </div>
+                            """.format(avg_stats['avg_losing_month']), unsafe_allow_html=True)
+
+                        with avg_col3:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                                        color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h5 style="margin: 0; color: white; font-size: 0.9em;">Average Winning Trade</h5>
+                                <h1 style="margin: 5px 0; color: white; font-size: 1.8em;">{:.2%}</h1>
+                            </div>
+                            """.format(avg_stats['avg_winning_trade']), unsafe_allow_html=True)
+
+                        with avg_col4:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #dc3545, #c82333);
+                                        color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h5 style="margin: 0; color: white; font-size: 0.9em;">Average Losing Trade</h5>
+                                <h1 style="margin: 5px 0; color: white; font-size: 1.8em;">{:.2%}</h1>
+                            </div>
+                            """.format(avg_stats['avg_losing_trade']), unsafe_allow_html=True)
+
+                        st.markdown("---")
+
+                        # Section Winning Rates
+                        st.markdown("## 📈 Winning Rates")
+
+                        # Calculer les taux de réussite
+                        winning_stats = analyzer.calculate_winning_rates()
+
+                        # Affichage en cinq colonnes
+                        win_col1, win_col2, win_col3, win_col4, win_col5 = st.columns(5)
+
+                        with win_col1:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                                        color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h5 style="margin: 0; color: white; font-size: 0.9em;">Winning Days</h5>
+                                <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
+                            </div>
+                            """.format(winning_stats['winning_days']), unsafe_allow_html=True)
+
+                        with win_col2:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                                        color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h5 style="margin: 0; color: white; font-size: 0.9em;">Winning Months</h5>
+                                <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
+                            </div>
+                            """.format(winning_stats['winning_months']), unsafe_allow_html=True)
+
+                        with win_col3:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                                        color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h5 style="margin: 0; color: white; font-size: 0.9em;">Winning Quarters</h5>
+                                <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
+                            </div>
+                            """.format(winning_stats['winning_quarters']), unsafe_allow_html=True)
+
+                        with win_col4:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                                        color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h5 style="margin: 0; color: white; font-size: 0.9em;">Winning Years</h5>
+                                <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
+                            </div>
+                            """.format(winning_stats['winning_years']), unsafe_allow_html=True)
+
+                        with win_col5:
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                                        color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h5 style="margin: 0; color: white; font-size: 0.9em;">Win Rate</h5>
+                                <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
+                            </div>
+                            """.format(winning_stats['win_rate']), unsafe_allow_html=True)
 
                         st.markdown("---")
 
