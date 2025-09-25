@@ -122,12 +122,31 @@ class BacktestAnalyzerPro:
                 initial_capital = 10000  # Capital initial par défaut
                 self.equity_curve = initial_capital + pnl_cumulative
 
-                # Calculer les returns depuis l'equity curve
+                # Calculer les returns depuis l'equity curve avec méthode améliorée pour MT5
                 self.returns = self.equity_curve.pct_change().dropna()
+
+                # Pour les données MT5, si pct_change donne des valeurs trop petites,
+                # utiliser directement les profits normalisés par le capital
+                if self.returns.abs().max() < 0.001:  # Si les rendements sont très petits
+                    # Utiliser les profits directement normalisés par le capital courant
+                    self.returns = data_series / self.equity_curve.shift(1)
+                    self.returns = self.returns.dropna()
 
                 # Nettoyer les valeurs infinies/NaN
                 import numpy as np
                 self.returns = self.returns.replace([np.inf, -np.inf], np.nan).dropna()
+
+                # S'assurer qu'on a des données valides
+                if len(self.returns) == 0 or self.returns.abs().max() == 0:
+                    # Fallback: calculer returns directement depuis les profits
+                    # Créer des rendements quotidiens à partir des profits
+                    daily_pnl = data_series.resample('D').sum()
+                    daily_pnl = daily_pnl[daily_pnl != 0]  # Enlever les jours sans trades
+                    if len(daily_pnl) > 0:
+                        # Calculer un capital roulant basé sur les profits cumulés
+                        rolling_capital = initial_capital + daily_pnl.cumsum().shift(1, fill_value=0)
+                        self.returns = daily_pnl / rolling_capital
+                        self.returns = self.returns.dropna().replace([np.inf, -np.inf], np.nan).dropna()
 
             return True
 
