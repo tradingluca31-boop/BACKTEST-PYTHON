@@ -1384,20 +1384,50 @@ def main():
                         st.markdown("### 📅 Performance Mensuelle")
                         col1, col2, col3 = st.columns(3)
 
-                        # Calculs mensuels supplémentaires
-                        if len(monthly_returns) > 0:
-                            best_month_val = best_month
-                            worst_month_val = worst_month
-                            avg_month_val = avg_month
-                        else:
-                            best_month_val = worst_month_val = avg_month_val = 0
+                        # Calculs mensuels RÉELS avec vérifications robustes
+                        try:
+                            # Calculer les returns mensuels directement ici pour garantir qu'ils existent
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
+                                monthly_returns_calc = analyzer.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+
+                                if len(monthly_returns_calc) > 0:
+                                    best_month_val = monthly_returns_calc.max()
+                                    worst_month_val = monthly_returns_calc.min()
+                                    avg_month_val = monthly_returns_calc.mean()
+                                    positive_months = len([x for x in monthly_returns_calc if x > 0])
+                                    negative_months = len([x for x in monthly_returns_calc if x < 0])
+                                    total_months = len(monthly_returns_calc)
+                                else:
+                                    # Si pas assez de données pour les mois, utiliser les returns journaliers
+                                    best_month_val = analyzer.returns.max()
+                                    worst_month_val = analyzer.returns.min()
+                                    avg_month_val = analyzer.returns.mean()
+                                    positive_months = len([x for x in analyzer.returns if x > 0])
+                                    negative_months = len([x for x in analyzer.returns if x < 0])
+                                    total_months = len(analyzer.returns)
+                            else:
+                                # Aucune donnée disponible
+                                best_month_val = worst_month_val = avg_month_val = 0
+                                positive_months = negative_months = total_months = 0
+                        except Exception as e:
+                            # En cas d'erreur, essayer avec les variables existantes
+                            try:
+                                best_month_val = best_month if 'best_month' in locals() else 0
+                                worst_month_val = worst_month if 'worst_month' in locals() else 0
+                                avg_month_val = avg_month if 'avg_month' in locals() else 0
+                                positive_months = len([x for x in monthly_returns if x > 0]) if 'monthly_returns' in locals() else 0
+                                negative_months = len([x for x in monthly_returns if x < 0]) if 'monthly_returns' in locals() else 0
+                                total_months = len(monthly_returns) if 'monthly_returns' in locals() else 0
+                            except:
+                                best_month_val = worst_month_val = avg_month_val = 0
+                                positive_months = negative_months = total_months = 0
 
                         with col1:
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
                                 <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
                                 <p style="margin: 5px 0;"><strong>Meilleur Mois:</strong> {best_month_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Nombre de Mois+:</strong> {len([x for x in monthly_returns if x > 0])}</p>
+                                <p style="margin: 5px 0;"><strong>Nombre de Mois+:</strong> {positive_months}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -1406,7 +1436,7 @@ def main():
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
                                 <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
                                 <p style="margin: 5px 0;"><strong>Pire Mois:</strong> {worst_month_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Nombre de Mois-:</strong> {len([x for x in monthly_returns if x < 0])}</p>
+                                <p style="margin: 5px 0;"><strong>Nombre de Mois-:</strong> {negative_months}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -1415,7 +1445,7 @@ def main():
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
                                 <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
                                 <p style="margin: 5px 0;"><strong>Mois Moyen:</strong> {avg_month_val:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Total Mois:</strong> {len(monthly_returns)}</p>
+                                <p style="margin: 5px 0;"><strong>Total Mois:</strong> {total_months}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -1425,22 +1455,40 @@ def main():
                         st.markdown("### 📆 Performance Annuelle")
                         col1, col2, col3 = st.columns(3)
 
-                        # Calculs annuels
+                        # Calculs annuels RÉELS
                         try:
-                            yearly_returns = analyzer.returns.resample('A').apply(lambda x: (1 + x).prod() - 1)
-                            best_year = yearly_returns.max() if len(yearly_returns) > 0 else 0
-                            worst_year = yearly_returns.min() if len(yearly_returns) > 0 else 0
-                            avg_year = yearly_returns.mean() if len(yearly_returns) > 0 else 0
-                        except:
-                            yearly_returns = pd.Series()
-                            best_year = worst_year = avg_year = 0
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
+                                yearly_returns_calc = analyzer.returns.resample('A').apply(lambda x: (1 + x).prod() - 1)
+
+                                if len(yearly_returns_calc) > 0:
+                                    best_year_val = yearly_returns_calc.max()
+                                    worst_year_val = yearly_returns_calc.min()
+                                    avg_year_val = yearly_returns_calc.mean()
+                                    positive_years = len([x for x in yearly_returns_calc if x > 0])
+                                    negative_years = len([x for x in yearly_returns_calc if x < 0])
+                                    total_years = len(yearly_returns_calc)
+                                else:
+                                    # Si pas assez pour années, utiliser returns totaux comme année unique
+                                    total_return = (1 + analyzer.returns).prod() - 1
+                                    best_year_val = total_return
+                                    worst_year_val = total_return
+                                    avg_year_val = total_return
+                                    positive_years = 1 if total_return > 0 else 0
+                                    negative_years = 1 if total_return < 0 else 0
+                                    total_years = 1
+                            else:
+                                best_year_val = worst_year_val = avg_year_val = 0
+                                positive_years = negative_years = total_years = 0
+                        except Exception as e:
+                            best_year_val = worst_year_val = avg_year_val = 0
+                            positive_years = negative_years = total_years = 0
 
                         with col1:
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
                                 <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Meilleure Année:</strong> {best_year:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Nombre d'Années+:</strong> {len([x for x in yearly_returns if x > 0])}</p>
+                                <p style="margin: 5px 0;"><strong>Meilleure Année:</strong> {best_year_val:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Nombre d'Années+:</strong> {positive_years}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -1448,8 +1496,8 @@ def main():
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
                                 <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Pire Année:</strong> {worst_year:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Nombre d'Années-:</strong> {len([x for x in yearly_returns if x < 0])}</p>
+                                <p style="margin: 5px 0;"><strong>Pire Année:</strong> {worst_year_val:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Nombre d'Années-:</strong> {negative_years}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -1457,8 +1505,8 @@ def main():
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
                                 <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
-                                <p style="margin: 5px 0;"><strong>Année Moyenne:</strong> {avg_year:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Total Années:</strong> {len(yearly_returns)}</p>
+                                <p style="margin: 5px 0;"><strong>Année Moyenne:</strong> {avg_year_val:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Total Années:</strong> {total_years}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -1468,19 +1516,27 @@ def main():
                         st.markdown("### 🎯 Performance par Trade")
                         col1, col2, col3 = st.columns(3)
 
-                        # Calculs par trade (utiliser returns comme proxy des trades)
-                        best_trade = best_day  # Meilleur return = meilleur trade
-                        worst_trade = worst_day  # Pire return = pire trade
-                        avg_trade = avg_return  # Return moyen = trade moyen
-                        positive_trades = len([x for x in analyzer.returns if x > 0])
-                        negative_trades = len([x for x in analyzer.returns if x < 0])
-                        total_trades = len(analyzer.returns)
+                        # Calculs par trade RÉELS
+                        try:
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
+                                best_trade_val = analyzer.returns.max()
+                                worst_trade_val = analyzer.returns.min()
+                                avg_trade_val = analyzer.returns.mean()
+                                positive_trades = len([x for x in analyzer.returns if x > 0])
+                                negative_trades = len([x for x in analyzer.returns if x < 0])
+                                total_trades = len(analyzer.returns)
+                            else:
+                                best_trade_val = worst_trade_val = avg_trade_val = 0
+                                positive_trades = negative_trades = total_trades = 0
+                        except:
+                            best_trade_val = worst_trade_val = avg_trade_val = 0
+                            positive_trades = negative_trades = total_trades = 0
 
                         with col1:
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
                                 <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Meilleur Trade:</strong> {best_trade:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Meilleur Trade:</strong> {best_trade_val:.2%}</p>
                                 <p style="margin: 5px 0;"><strong>Trades Gagnants:</strong> {positive_trades}</p>
                             </div>
                             """, unsafe_allow_html=True)
@@ -1489,7 +1545,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
                                 <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Pire Trade:</strong> {worst_trade:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Pire Trade:</strong> {worst_trade_val:.2%}</p>
                                 <p style="margin: 5px 0;"><strong>Trades Perdants:</strong> {negative_trades}</p>
                             </div>
                             """, unsafe_allow_html=True)
@@ -1498,7 +1554,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
                                 <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
-                                <p style="margin: 5px 0;"><strong>Trade Moyen:</strong> {avg_trade:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Trade Moyen:</strong> {avg_trade_val:.2%}</p>
                                 <p style="margin: 5px 0;"><strong>Total Trades:</strong> {total_trades}</p>
                             </div>
                             """, unsafe_allow_html=True)
@@ -1509,22 +1565,40 @@ def main():
                         st.markdown("### 🗓️ Performance Trimestrielle")
                         col1, col2, col3 = st.columns(3)
 
-                        # Calculs trimestriels
+                        # Calculs trimestriels RÉELS
                         try:
-                            quarterly_returns = analyzer.returns.resample('Q').apply(lambda x: (1 + x).prod() - 1)
-                            best_quarter = quarterly_returns.max() if len(quarterly_returns) > 0 else 0
-                            worst_quarter = quarterly_returns.min() if len(quarterly_returns) > 0 else 0
-                            avg_quarter = quarterly_returns.mean() if len(quarterly_returns) > 0 else 0
-                        except:
-                            quarterly_returns = pd.Series()
-                            best_quarter = worst_quarter = avg_quarter = 0
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
+                                quarterly_returns_calc = analyzer.returns.resample('Q').apply(lambda x: (1 + x).prod() - 1)
+
+                                if len(quarterly_returns_calc) > 0:
+                                    best_quarter_val = quarterly_returns_calc.max()
+                                    worst_quarter_val = quarterly_returns_calc.min()
+                                    avg_quarter_val = quarterly_returns_calc.mean()
+                                    positive_quarters = len([x for x in quarterly_returns_calc if x > 0])
+                                    negative_quarters = len([x for x in quarterly_returns_calc if x < 0])
+                                    total_quarters = len(quarterly_returns_calc)
+                                else:
+                                    # Si pas assez pour trimestres, utiliser returns totaux
+                                    total_return = (1 + analyzer.returns).prod() - 1
+                                    best_quarter_val = total_return
+                                    worst_quarter_val = total_return
+                                    avg_quarter_val = total_return
+                                    positive_quarters = 1 if total_return > 0 else 0
+                                    negative_quarters = 1 if total_return < 0 else 0
+                                    total_quarters = 1
+                            else:
+                                best_quarter_val = worst_quarter_val = avg_quarter_val = 0
+                                positive_quarters = negative_quarters = total_quarters = 0
+                        except Exception as e:
+                            best_quarter_val = worst_quarter_val = avg_quarter_val = 0
+                            positive_quarters = negative_quarters = total_quarters = 0
 
                         with col1:
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
                                 <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Meilleur Trimestre:</strong> {best_quarter:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Trimestres+:</strong> {len([x for x in quarterly_returns if x > 0])}</p>
+                                <p style="margin: 5px 0;"><strong>Meilleur Trimestre:</strong> {best_quarter_val:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Trimestres+:</strong> {positive_quarters}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -1532,8 +1606,8 @@ def main():
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #dc3545; margin: 10px 0;">
                                 <h4 style="color: #dc3545; margin: 0;">📉 Pires Performances</h4>
-                                <p style="margin: 5px 0;"><strong>Pire Trimestre:</strong> {worst_quarter:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Trimestres-:</strong> {len([x for x in quarterly_returns if x < 0])}</p>
+                                <p style="margin: 5px 0;"><strong>Pire Trimestre:</strong> {worst_quarter_val:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Trimestres-:</strong> {negative_quarters}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -1541,8 +1615,8 @@ def main():
                             st.markdown(f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #6f42c1; margin: 10px 0;">
                                 <h4 style="color: #6f42c1; margin: 0;">📊 Moyennes</h4>
-                                <p style="margin: 5px 0;"><strong>Trimestre Moyen:</strong> {avg_quarter:.2%}</p>
-                                <p style="margin: 5px 0;"><strong>Total Trimestres:</strong> {len(quarterly_returns)}</p>
+                                <p style="margin: 5px 0;"><strong>Trimestre Moyen:</strong> {avg_quarter_val:.2%}</p>
+                                <p style="margin: 5px 0;"><strong>Total Trimestres:</strong> {total_quarters}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
