@@ -837,60 +837,43 @@ class BacktestAnalyzerPro:
 
     def create_equity_curve_plot(self):
         """
-        Graphique equity curve professionnel style référence
+        Graphique equity curve professionnel
         """
         if self.equity_curve is None:
             self.equity_curve = (1 + self.returns).cumprod()
 
-        # Convertir en pourcentage pour l'affichage (commencer à 0%)
-        equity_pct = (self.equity_curve - 1) * 100
-
         fig = go.Figure()
 
-        # Equity curve principale avec style turquoise
+        # Equity curve principale
         fig.add_trace(go.Scatter(
-            x=equity_pct.index,
-            y=equity_pct.values,
-            name='Equity Curve',
-            line=dict(color='#00d4aa', width=2.5),
-            hovertemplate='<b>Date:</b> %{x}<br><b>Return:</b> %{y:.2f}%<extra></extra>',
-            showlegend=False
+            x=self.equity_curve.index,
+            y=self.equity_curve.values,
+            name='Portfolio Value',
+            line=dict(color='#1f77b4', width=2),
+            hovertemplate='<b>Date:</b> %{x}<br><b>Value:</b> %{y:.2f}<extra></extra>'
         ))
 
-        # Ligne de référence à 0%
-        fig.add_hline(y=0, line=dict(color='gray', width=1, dash='solid'), opacity=0.5)
-
-        # Calculer les périodes pour le titre
-        start_date = equity_pct.index[0] if len(equity_pct) > 0 else pd.Timestamp('2018-01-01')
-        end_date = equity_pct.index[-1] if len(equity_pct) > 0 else pd.Timestamp('2024-12-31')
-
-        title_text = f'Equity Curve<br><span style="font-size:14px; color:#888;">{start_date.strftime("%d %b %y")} - {end_date.strftime("%d %b %y")}</span>'
+        # Benchmark si disponible
+        if self.benchmark is not None:
+            fig.add_trace(go.Scatter(
+                x=self.benchmark.index,
+                y=self.benchmark.values,
+                name='Benchmark',
+                line=dict(color='#ff7f0e', width=1, dash='dash'),
+                hovertemplate='<b>Date:</b> %{x}<br><b>Benchmark:</b> %{y:.2f}<extra></extra>'
+            ))
 
         fig.update_layout(
             title={
-                'text': title_text,
+                'text': 'Portfolio Equity Curve',
                 'x': 0.5,
-                'font': {'size': 18, 'color': 'white'}
+                'font': {'size': 20, 'color': '#2c3e50'}
             },
-            plot_bgcolor='#1a1a1a',
-            paper_bgcolor='#1a1a1a',
-            font=dict(color='white'),
-            xaxis=dict(
-                gridcolor='#333333',
-                showgrid=True,
-                color='white',
-                tickformat='%Y'
-            ),
-            yaxis=dict(
-                gridcolor='#333333',
-                showgrid=True,
-                color='white',
-                tickformat='.0f',
-                ticksuffix='%'
-            ),
+            xaxis_title='Date',
+            yaxis_title='Portfolio Value',
+            template='plotly_white',
             hovermode='x unified',
-            height=450,
-            margin=dict(l=60, r=60, t=100, b=50)
+            height=500
         )
 
         return fig
