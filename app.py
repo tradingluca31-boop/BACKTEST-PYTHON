@@ -1356,13 +1356,30 @@ def main():
                             positive_periods = negative_periods = 0
                             positive_pct = negative_pct = 0
 
+                        # S'assurer que toutes les variables sont définies avant l'affichage
+                        if 'best_day' not in locals():
+                            best_day = worst_day = 0
+                            best_month = worst_month = 0
+                            avg_return = avg_month = 0
+                            best_streak = worst_streak = 0
+                            positive_periods = negative_periods = 0
+                            positive_pct = negative_pct = 0
+
+                        # Debug final des valeurs avant affichage
+                        st.write(f"DEBUG FINAL: best_day={best_day}, worst_day={worst_day}")
+                        st.write(f"DEBUG FINAL: positive_periods={positive_periods}, negative_periods={negative_periods}")
+
                         # Display Additional Metrics in a grid
                         st.markdown("### 📊 Métriques Détaillées")
 
                         col1, col2, col3 = st.columns(3)
 
                         with col1:
-                            st.markdown(f"""
+                            # Test simple d'abord
+                            st.write(f"TEST: best_day = {best_day:.2%}")
+
+                            # HTML
+                            html_content = f"""
                             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0;">
                                 <h4 style="color: #28a745; margin: 0;">📈 Meilleures Performances</h4>
                                 <p style="margin: 5px 0;"><strong>Best Day:</strong> {best_day:.2%}</p>
@@ -1370,7 +1387,9 @@ def main():
                                 <p style="margin: 5px 0;"><strong>Best Streak:</strong> {best_streak} périodes</p>
                                 <p style="margin: 5px 0;"><strong>Positive Periods:</strong> {positive_periods} ({positive_pct:.1f}%)</p>
                             </div>
-                            """, unsafe_allow_html=True)
+                            """
+                            st.write("DEBUG HTML:", html_content[:100] + "...")
+                            st.markdown(html_content, unsafe_allow_html=True)
 
                         with col2:
                             st.markdown(f"""
