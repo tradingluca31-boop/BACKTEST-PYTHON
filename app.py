@@ -213,9 +213,11 @@ class BacktestAnalyzerPro:
                 return {key: 0.0 for key in ['CAGR', 'Sharpe', 'Sortino', 'Max_Drawdown',
                           'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg', 'Volatility']}
 
-            if QUANTSTATS_AVAILABLE:
+            # FORCER l'utilisation du fallback personnalisé pour les données de trading
+            # QuantStats assume des données journalières ce qui donne des résultats faux
+            if False: # Désactivé pour éviter les calculs incorrects
                 try:
-                    # Utiliser QuantStats si disponible
+                    # Utiliser QuantStats si disponible (DÉSACTIVÉ)
                     metrics['CAGR'] = qs.stats.cagr(returns)
                     metrics['Sharpe'] = qs.stats.sharpe(returns)
                     metrics['Sortino'] = qs.stats.sortino(returns)
@@ -242,29 +244,37 @@ class BacktestAnalyzerPro:
                     return {key: 0.0 for key in ['CAGR', 'Sharpe', 'Sortino', 'Max_Drawdown',
                                    'Win_Rate', 'Profit_Factor', 'RR_Ratio_Avg']}
 
-                # CAGR (Compound Annual Growth Rate)
+                # CAGR (Compound Annual Growth Rate) - Corrigé pour données de trading
                 try:
                     total_return = (1 + returns).prod() - 1
-                    years = len(returns) / 252  # Assuming 252 trading days per year
-                    if years > 0 and total_return > -1:
-                        metrics['CAGR'] = (1 + total_return) ** (1/years) - 1
+                    # Calculer la période réelle en années basée sur les dates de trade
+                    time_period = (returns.index[-1] - returns.index[0]).days / 365.25
+                    if time_period > 0 and total_return > -1:
+                        metrics['CAGR'] = (1 + total_return) ** (1/time_period) - 1
                     else:
-                        metrics['CAGR'] = 0
+                        metrics['CAGR'] = total_return  # Si moins d'un an, return total
                 except:
                     metrics['CAGR'] = 0
 
-                # Volatilité annualisée (avec protection contre valeurs extremes)
-                vol = returns.std() * np.sqrt(252)
-                metrics['Volatility'] = vol if vol < 100 else 0  # Limiter à 100% max
+                # Calculs corrigés pour données de trading (pas journalières)
+                # Calculer la fréquence de trading réelle
+                time_period = (returns.index[-1] - returns.index[0]).days / 365.25
+                trades_per_year = len(returns) / time_period if time_period > 0 else len(returns)
 
-                # Sharpe Ratio
-                excess_returns = returns.mean() * 252  # Annualized return
-                metrics['Sharpe'] = excess_returns / metrics['Volatility'] if metrics['Volatility'] > 0 else 0
+                # Volatilité (standard deviation des returns sans annualisation forcée)
+                vol = returns.std()
+                metrics['Volatility'] = vol
+
+                # Return annualisé basé sur CAGR réel
+                annual_return = metrics['CAGR']
+
+                # Sharpe Ratio (excess return vs volatility) - simplifié
+                metrics['Sharpe'] = annual_return / vol if vol > 0 else 0
 
                 # Sortino Ratio (downside deviation)
                 negative_returns = returns[returns < 0]
-                downside_std = negative_returns.std() * np.sqrt(252) if len(negative_returns) > 0 else metrics['Volatility']
-                metrics['Sortino'] = excess_returns / downside_std if downside_std > 0 else 0
+                downside_std = negative_returns.std() if len(negative_returns) > 0 else vol
+                metrics['Sortino'] = annual_return / downside_std if downside_std > 0 else 0
 
                 # Max Drawdown
                 cumulative_returns = (1 + returns).cumprod()
@@ -1583,14 +1593,31 @@ def main():
 
                             # S'assurer que les returns existent et ne sont pas vides
                             if analyzer.returns is not None and len(analyzer.returns) > 0:
-                                # Expected Daily Return
-                                expected_daily = analyzer.returns.mean()
+                                # Expected Return par Trade (moyenne des returns)
+                                expected_per_trade = analyzer.returns.mean()
 
-                                # Expected Monthly Return (compoundé sur 21 jours de trading)
-                                expected_monthly = (1 + expected_daily) ** 21 - 1
+                                # Pour calculer expected monthly/yearly, on a besoin de savoir la fréquence des trades
+                                # Calculons la durée totale et le nombre de trades
+                                total_days = (analyzer.returns.index[-1] - analyzer.returns.index[0]).days
+                                num_trades = len(analyzer.returns)
 
-                                # Expected Yearly Return (compoundé sur 252 jours de trading)
-                                expected_yearly = (1 + expected_daily) ** 252 - 1
+                                if total_days > 0 and num_trades > 0:
+                                    # Trades per day
+                                    trades_per_day = num_trades / total_days
+
+                                    # Expected daily return (en supposant que tous les trades ne se font pas chaque jour)
+                                    expected_daily = expected_per_trade * trades_per_day
+
+                                    # Expected monthly (21 jours de trading)
+                                    expected_monthly = expected_daily * 21
+
+                                    # Expected yearly (252 jours de trading)
+                                    expected_yearly = expected_daily * 252
+                                else:
+                                    # Fallback: utiliser directement les moyennes sans compound
+                                    expected_daily = expected_per_trade
+                                    expected_monthly = expected_per_trade * 21
+                                    expected_yearly = expected_per_trade * 252
 
                                 # Risk of Ruin (estimation basée sur la probabilité de perte importante)
                                 daily_vol = analyzer.returns.std()
@@ -1612,12 +1639,13 @@ def main():
 
 
                             elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
-                                # Fallback: calculer à partir de equity_curve
+                                # Fallback: calculer à partir de equity_curve (ici c'est vraiment journalier)
                                 equity_returns = analyzer.equity_curve.pct_change().dropna()
                                 if len(equity_returns) > 0:
                                     expected_daily = equity_returns.mean()
-                                    expected_monthly = (1 + expected_daily) ** 21 - 1
-                                    expected_yearly = (1 + expected_daily) ** 252 - 1
+                                    # Pour equity curve, on peut utiliser des moyennes simples car c'est journalier
+                                    expected_monthly = expected_daily * 21
+                                    expected_yearly = expected_daily * 252
 
                                     daily_vol = equity_returns.std()
                                     if daily_vol > 0:
