@@ -930,16 +930,19 @@ class BacktestAnalyzerPro:
                 return go.Figure()
 
             # Calculer les rendements mensuels réels
-            # Utiliser 'MS' pour début de mois et calculer correctement
-            monthly_returns = self.returns.resample('MS').apply(lambda x: (1 + x).prod() - 1 if len(x) > 0 else 0)
+            # Utiliser 'M' pour fin de mois et calculer correctement
+            monthly_returns = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1 if len(x) > 0 else np.nan)
 
             # Créer DataFrame avec années et mois
             monthly_df = monthly_returns.to_frame('returns')
+            monthly_df = monthly_df.dropna()  # Supprimer les NaN d'abord
+
+            if len(monthly_df) == 0:
+                st.warning("Pas assez de données pour créer la heatmap mensuelle")
+                return go.Figure()
+
             monthly_df['year'] = monthly_df.index.year
             monthly_df['month'] = monthly_df.index.month
-
-            # Filtrer les données valides
-            monthly_df = monthly_df.dropna()
 
             # Créer la matrice pivot pour la heatmap
             heatmap_data = monthly_df.pivot(index='year', columns='month', values='returns')
@@ -959,12 +962,15 @@ class BacktestAnalyzerPro:
             month_labels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                            'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
+            # Obtenir les années pour les labels y
+            years = [str(year) for year in sorted(heatmap_data.index)]
+
             # Créer les annotations avec les valeurs
             annotations = []
             for i, year in enumerate(heatmap_data.index):
                 for j, month in enumerate(range(1, 13)):
                     value = heatmap_data.loc[year, month]
-                    if pd.notna(value) and value != 0:
+                    if pd.notna(value):
                         # Couleur du texte basée sur la valeur
                         text_color = 'white' if abs(value) > 2 else 'black'
                         annotations.append(
@@ -983,7 +989,7 @@ class BacktestAnalyzerPro:
             fig = go.Figure(data=go.Heatmap(
                 z=heatmap_data.values,
                 x=month_labels,
-                y=heatmap_data.index,
+                y=years,  # Utiliser les années comme strings
                 colorscale=[
                     [0.0, '#d73027'],    # Rouge foncé pour -8%
                     [0.2, '#fc8d59'],    # Rouge clair pour -4%
@@ -1001,14 +1007,16 @@ class BacktestAnalyzerPro:
                     title=dict(text="Return (%)", side="right"),
                     tickmode="linear",
                     tick0=-8,
-                    dtick=2
+                    dtick=2,
+                    thickness=15,
+                    len=0.7
                 ),
                 hovertemplate='<b>%{y}</b> - <b>%{x}</b><br><b>Return:</b> %{z:.2f}%<extra></extra>',
-                showlegend=False
+                showlegend=False,
+                text=[[f'{val:.2f}' if pd.notna(val) else '' for val in row] for row in heatmap_data.values],
+                texttemplate='%{text}',
+                textfont={"size": 10, "color": "white", "family": "Arial Black"}
             ))
-
-            # Ajouter les annotations
-            fig.update_layout(annotations=annotations)
 
             # Style de la heatmap
             fig.update_layout(
@@ -1024,16 +1032,16 @@ class BacktestAnalyzerPro:
                 xaxis=dict(
                     title='',
                     tickfont=dict(size=12, color='white', family='Arial Black'),
-                    gridcolor='rgba(255,255,255,0.1)',
-                    side='bottom'
+                    side='bottom',
+                    showgrid=False
                 ),
                 yaxis=dict(
                     title='',
                     tickfont=dict(size=12, color='white', family='Arial Black'),
-                    gridcolor='rgba(255,255,255,0.1)',
+                    showgrid=False,
                     autorange='reversed'  # Pour avoir les années dans l'ordre croissant de haut en bas
                 ),
-                margin=dict(l=50, r=50, t=80, b=50)
+                margin=dict(l=80, r=100, t=80, b=50)
             )
 
             return fig
