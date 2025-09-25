@@ -942,42 +942,43 @@ class BacktestAnalyzerPro:
 
     def create_monthly_heatmap(self):
         """
-        Heatmap professionnelle des rendements mensuels avec calculs réels
+        Heatmap professionnelle des rendements mensuels avec calculs réels basés sur l'equity curve
         """
         try:
-            if self.returns is None or len(self.returns) == 0:
-                return go.Figure()
+            if self.equity_curve is None or len(self.equity_curve) == 0:
+                # Si pas d'equity curve, la créer à partir des returns
+                if self.returns is None or len(self.returns) == 0:
+                    return go.Figure()
+                self.equity_curve = (1 + self.returns).cumprod()
 
-            # Calculer les rendements mensuels réels avec une méthode plus précise
-            # Utiliser la somme pour une meilleure précision sur les petits nombres
-            monthly_returns = self.returns.resample('M').sum()
-            monthly_returns = monthly_returns.dropna()
+            # Méthode directe basée sur l'equity curve pour éviter les problèmes de sparse data
+            # Grouper par mois et prendre les valeurs début/fin de mois
+            equity_monthly = self.equity_curve.resample('M').agg(['first', 'last'])
 
-            # Si tous les rendements sont très petits, utiliser la méthode composée
-            # Sinon utiliser la somme qui est plus précise pour les rendements de trading
-            monthly_returns_compound = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1 if len(x) > 0 else 0)
-            monthly_returns_compound = monthly_returns_compound.dropna()
+            # Calculer les rendements mensuels réels: (fin - début) / début
+            monthly_returns_data = []
 
-            # Comparer et utiliser la méthode qui donne les meilleurs résultats
-            # Pour les données de trading, la somme est souvent plus appropriée
-            if monthly_returns.abs().max() > monthly_returns_compound.abs().max():
-                monthly_returns = monthly_returns
-            else:
-                monthly_returns = monthly_returns_compound
+            for date_idx in equity_monthly.index:
+                first_val = equity_monthly.loc[date_idx, 'first']
+                last_val = equity_monthly.loc[date_idx, 'last']
 
-            if len(monthly_returns) == 0:
+                # Calculer le rendement mensuel
+                if pd.notna(first_val) and pd.notna(last_val) and first_val != 0:
+                    monthly_return = (last_val - first_val) / first_val
+
+                    monthly_returns_data.append({
+                        'date': date_idx,
+                        'year': date_idx.year,
+                        'month': date_idx.month,
+                        'return': monthly_return * 100  # Convertir en pourcentage
+                    })
+
+            if len(monthly_returns_data) == 0:
                 st.warning("Pas assez de données pour créer la heatmap mensuelle")
                 return go.Figure()
 
-            # Créer une liste pour stocker tous les rendements mensuels avec leurs dates
-            monthly_data = []
-            for date, ret in monthly_returns.items():
-                monthly_data.append({
-                    'date': date,
-                    'year': date.year,
-                    'month': date.month,
-                    'return': ret * 100  # Convertir en pourcentage
-                })
+            # Créer DataFrame à partir des données calculées
+            monthly_data = monthly_returns_data
 
             # Convertir en DataFrame
             df = pd.DataFrame(monthly_data)
@@ -1534,6 +1535,275 @@ class BacktestAnalyzerPro:
         except Exception as e:
             st.error(f"Erreur génération rapport: {e}")
             return None
+
+    def create_yearly_returns_chart(self):
+        """
+        Graphique des rendements annuels
+        """
+        try:
+            if self.equity_curve is None or len(self.equity_curve) == 0:
+                if self.returns is None or len(self.returns) == 0:
+                    return go.Figure()
+                self.equity_curve = (1 + self.returns).cumprod()
+
+            # Calculer les rendements annuels
+            yearly_returns = []
+            years = sorted(set(self.equity_curve.index.year))
+
+            for year in years:
+                year_data = self.equity_curve[self.equity_curve.index.year == year]
+                if len(year_data) > 1:
+                    start_value = year_data.iloc[0]
+                    end_value = year_data.iloc[-1]
+                    yearly_return = (end_value - start_value) / start_value
+                    yearly_returns.append({'year': year, 'return': yearly_return * 100})
+
+            if len(yearly_returns) == 0:
+                return go.Figure()
+
+            # Créer le graphique en barres
+            years_list = [item['year'] for item in yearly_returns]
+            returns_list = [item['return'] for item in yearly_returns]
+
+            fig = go.Figure(data=go.Bar(
+                x=years_list,
+                y=returns_list,
+                marker_color='#00D4AA',
+                text=[f'{ret:.1f}%' for ret in returns_list],
+                textposition='outside'
+            ))
+
+            fig.update_layout(
+                title={
+                    'text': f'Yearly Returns<br><sub>{min(years_list)} - {max(years_list)}</sub>',
+                    'x': 0.5,
+                    'font': {'size': 18, 'color': 'white'}
+                },
+                plot_bgcolor='#1e1e1e',
+                paper_bgcolor='#1e1e1e',
+                font=dict(color='white'),
+                xaxis=dict(
+                    title='',
+                    tickfont=dict(color='white'),
+                    gridcolor='rgba(255,255,255,0.1)'
+                ),
+                yaxis=dict(
+                    title='',
+                    tickformat='.0f',
+                    ticksuffix='%',
+                    tickfont=dict(color='white'),
+                    gridcolor='rgba(255,255,255,0.2)'
+                ),
+                height=400,
+                margin=dict(l=60, r=60, t=80, b=50)
+            )
+
+            return fig
+
+        except Exception as e:
+            st.warning(f"Erreur création graphique rendements annuels: {e}")
+            return go.Figure()
+
+    def create_worst_drawdowns_chart(self):
+        """
+        Graphique des 5 pires périodes de drawdown avec courbe d'equity
+        """
+        try:
+            if self.equity_curve is None or len(self.equity_curve) == 0:
+                if self.returns is None or len(self.returns) == 0:
+                    return go.Figure()
+                self.equity_curve = (1 + self.returns).cumprod()
+
+            # Calculer les drawdowns
+            rolling_max = self.equity_curve.expanding().max()
+            drawdowns = (self.equity_curve - rolling_max) / rolling_max * 100
+
+            # Identifier les périodes de drawdown
+            in_drawdown = drawdowns < -0.1  # Seuil minimal de -0.1%
+            drawdown_periods = []
+
+            start_idx = None
+            for i, is_dd in enumerate(in_drawdown):
+                if is_dd and start_idx is None:
+                    start_idx = i
+                elif not is_dd and start_idx is not None:
+                    end_idx = i - 1
+                    period_dd = drawdowns.iloc[start_idx:end_idx+1]
+                    if len(period_dd) > 0:
+                        max_dd = period_dd.min()
+                        drawdown_periods.append({
+                            'start': drawdowns.index[start_idx],
+                            'end': drawdowns.index[end_idx],
+                            'max_drawdown': max_dd,
+                            'start_idx': start_idx,
+                            'end_idx': end_idx
+                        })
+                    start_idx = None
+
+            # Prendre les 5 pires
+            worst_5 = sorted(drawdown_periods, key=lambda x: x['max_drawdown'])[:5]
+
+            # Créer le graphique
+            fig = go.Figure()
+
+            # Courbe d'equity principale
+            equity_pct = (self.equity_curve - 1) * 100  # Convertir en pourcentages
+            fig.add_trace(go.Scatter(
+                x=equity_pct.index,
+                y=equity_pct.values,
+                mode='lines',
+                name='Portfolio Returns',
+                line=dict(color='#00D4AA', width=2)
+            ))
+
+            # Ajouter les zones de drawdown
+            colors = ['rgba(255,0,0,0.2)', 'rgba(255,100,0,0.2)', 'rgba(255,150,0,0.2)',
+                     'rgba(255,200,0,0.2)', 'rgba(255,255,0,0.2)']
+
+            for i, dd in enumerate(worst_5):
+                if i < len(colors):
+                    fig.add_vrect(
+                        x0=dd['start'], x1=dd['end'],
+                        fillcolor=colors[i],
+                        opacity=0.3,
+                        line_width=0
+                    )
+
+            # Dates de début et fin
+            start_date = equity_pct.index.min().strftime('%d %b \'%y')
+            end_date = equity_pct.index.max().strftime('%d %b \'%y')
+
+            fig.update_layout(
+                title={
+                    'text': f'Worst 5 Drawdown Periods<br><sub>{start_date} - {end_date}</sub>',
+                    'x': 0.5,
+                    'font': {'size': 18, 'color': 'white'}
+                },
+                plot_bgcolor='#1e1e1e',
+                paper_bgcolor='#1e1e1e',
+                font=dict(color='white'),
+                xaxis=dict(
+                    title='',
+                    tickfont=dict(color='white'),
+                    gridcolor='rgba(255,255,255,0.1)'
+                ),
+                yaxis=dict(
+                    title='',
+                    tickformat='.0f',
+                    ticksuffix='%',
+                    tickfont=dict(color='white'),
+                    gridcolor='rgba(255,255,255,0.2)'
+                ),
+                height=400,
+                showlegend=False,
+                margin=dict(l=60, r=60, t=80, b=50)
+            )
+
+            return fig
+
+        except Exception as e:
+            st.warning(f"Erreur création graphique drawdowns: {e}")
+            return go.Figure()
+
+    def create_monthly_returns_distribution(self):
+        """
+        Distribution des rendements mensuels avec courbe normale
+        """
+        try:
+            if self.equity_curve is None or len(self.equity_curve) == 0:
+                if self.returns is None or len(self.returns) == 0:
+                    return go.Figure()
+                self.equity_curve = (1 + self.returns).cumprod()
+
+            # Calculer les rendements mensuels
+            equity_monthly = self.equity_curve.resample('M').agg(['first', 'last'])
+            monthly_returns = []
+
+            for date_idx in equity_monthly.index:
+                first_val = equity_monthly.loc[date_idx, 'first']
+                last_val = equity_monthly.loc[date_idx, 'last']
+                if pd.notna(first_val) and pd.notna(last_val) and first_val != 0:
+                    monthly_return = (last_val - first_val) / first_val * 100
+                    monthly_returns.append(monthly_return)
+
+            if len(monthly_returns) == 0:
+                return go.Figure()
+
+            # Statistiques pour la courbe normale
+            import numpy as np
+            from scipy import stats
+
+            mean_return = np.mean(monthly_returns)
+            std_return = np.std(monthly_returns)
+
+            # Créer l'histogramme
+            fig = go.Figure()
+
+            fig.add_trace(go.Histogram(
+                x=monthly_returns,
+                nbinsx=20,
+                histnorm='count',
+                name='Monthly Returns',
+                marker_color='#00D4AA',
+                opacity=0.8
+            ))
+
+            # Ajouter la courbe normale théorique
+            x_range = np.linspace(min(monthly_returns) - 2, max(monthly_returns) + 2, 100)
+            normal_curve = stats.norm.pdf(x_range, mean_return, std_return)
+            normal_curve_scaled = normal_curve * len(monthly_returns) * (max(monthly_returns) - min(monthly_returns)) / 20
+
+            fig.add_trace(go.Scatter(
+                x=x_range,
+                y=normal_curve_scaled,
+                mode='lines',
+                name='Normal Distribution',
+                line=dict(color='white', width=2)
+            ))
+
+            # Ligne verticale pour la moyenne
+            fig.add_vline(
+                x=mean_return,
+                line_dash="dash",
+                line_color="red",
+                line_width=2
+            )
+
+            # Dates de début et fin
+            start_date = self.equity_curve.index.min().strftime('%Y')
+            end_date = self.equity_curve.index.max().strftime('%Y')
+
+            fig.update_layout(
+                title={
+                    'text': f'Distribution of Monthly Returns<br><sub>{start_date} - {end_date}</sub>',
+                    'x': 0.5,
+                    'font': {'size': 18, 'color': 'white'}
+                },
+                plot_bgcolor='#1e1e1e',
+                paper_bgcolor='#1e1e1e',
+                font=dict(color='white'),
+                xaxis=dict(
+                    title='',
+                    tickformat='.0f',
+                    ticksuffix='%',
+                    tickfont=dict(color='white'),
+                    gridcolor='rgba(255,255,255,0.1)'
+                ),
+                yaxis=dict(
+                    title='Occurrences',
+                    tickfont=dict(color='white'),
+                    gridcolor='rgba(255,255,255,0.2)'
+                ),
+                height=400,
+                showlegend=False,
+                margin=dict(l=60, r=60, t=80, b=50)
+            )
+
+            return fig
+
+        except Exception as e:
+            st.warning(f"Erreur création distribution rendements mensuels: {e}")
+            return go.Figure()
 
 def main():
     """
@@ -3215,6 +3485,12 @@ def main():
 
                             st.subheader("📉 5% VaR Analysis")
                             st.plotly_chart(analyzer.create_var_visualization(), use_container_width=True)
+
+                            st.subheader("📅 Rendements Annuels")
+                            st.plotly_chart(analyzer.create_yearly_returns_chart(), use_container_width=True)
+
+                            st.subheader("📉 Top 5 Drawdowns")
+                            st.plotly_chart(analyzer.create_worst_drawdowns_chart(), use_container_width=True)
 
                         if show_advanced:
                             # Tableau complet des métriques
