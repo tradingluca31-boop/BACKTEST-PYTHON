@@ -694,30 +694,42 @@ class BacktestAnalyzerPro:
             # Créer une courbe lisse basée sur les données réelles (KDE approximation)
             try:
                 from scipy import stats
-                if len(monthly_returns_pct) > 3:
-                    # Densité empirique avec noyau gaussien
-                    kde = stats.gaussian_kde(monthly_returns_pct)
-                    x_range = np.linspace(monthly_returns_pct.min() * 1.2,
-                                        monthly_returns_pct.max() * 1.2, 200)
-                    density = kde(x_range)
+                if len(monthly_returns_pct) > 3 and monthly_returns_pct.std() > 0:
+                    # Vérifier que les données ne sont pas toutes identiques
+                    unique_values = monthly_returns_pct.nunique()
+                    if unique_values > 1:
+                        # Densité empirique avec noyau gaussien
+                        kde = stats.gaussian_kde(monthly_returns_pct.dropna())
 
-                    # Ajuster l'échelle pour correspondre à l'histogramme
-                    hist_counts, _ = np.histogram(monthly_returns_pct,
-                                                bins=min(20, max(8, len(monthly_returns_pct)//2)))
-                    scale_factor = max(hist_counts) / max(density) if max(density) > 0 else 1
-                    density_scaled = density * scale_factor
+                        # Calculer la plage de données valides
+                        data_min = monthly_returns_pct.min()
+                        data_max = monthly_returns_pct.max()
+                        data_range = data_max - data_min
 
-                    # Ajouter la courbe lisse des données réelles
-                    fig.add_trace(go.Scatter(
-                        x=x_range,
-                        y=density_scaled,
-                        mode='lines',
-                        name='Empirical Distribution',
-                        line=dict(color='white', width=3),
-                        showlegend=False
-                    ))
-            except ImportError:
-                pass  # Si scipy n'est pas disponible, continuer sans la courbe
+                        if data_range > 0:
+                            x_range = np.linspace(data_min - data_range * 0.1,
+                                                data_max + data_range * 0.1, 200)
+                            density = kde(x_range)
+
+                            # Ajuster l'échelle pour correspondre à l'histogramme
+                            hist_counts, _ = np.histogram(monthly_returns_pct,
+                                                        bins=min(20, max(8, len(monthly_returns_pct)//2)))
+                            max_hist = max(hist_counts) if len(hist_counts) > 0 else 1
+                            max_density = max(density) if len(density) > 0 else 1
+                            scale_factor = max_hist / max_density if max_density > 0 else 1
+                            density_scaled = density * scale_factor
+
+                            # Ajouter la courbe lisse des données réelles
+                            fig.add_trace(go.Scatter(
+                                x=x_range,
+                                y=density_scaled,
+                                mode='lines',
+                                name='Empirical Distribution',
+                                line=dict(color='white', width=3),
+                                showlegend=False
+                            ))
+            except (ImportError, Exception) as e:
+                pass  # Si scipy n'est pas disponible ou erreur, continuer sans la courbe
 
             # Ligne verticale pour la moyenne
             fig.add_vline(
@@ -747,8 +759,7 @@ class BacktestAnalyzerPro:
                 xaxis=dict(
                     gridcolor='#333333',
                     tickformat='.0f',
-                    ticksuffix='%',
-                    range=[monthly_returns_pct.min() * 1.1, monthly_returns_pct.max() * 1.1]
+                    ticksuffix='%'
                 ),
                 yaxis=dict(
                     gridcolor='#333333'
