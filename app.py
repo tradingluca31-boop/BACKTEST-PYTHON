@@ -714,6 +714,47 @@ class BacktestAnalyzerPro:
                 autobinx=True
             ))
 
+            # Ajouter la courbe normale lisse basée sur les statistiques réelles
+            if len(monthly_returns_pct) > 3 and not np.isnan(std_return) and std_return > 0:
+                try:
+                    # Calculer la plage pour la courbe
+                    data_min = monthly_returns_pct.min()
+                    data_max = monthly_returns_pct.max()
+                    data_range = data_max - data_min
+
+                    # Étendre la plage de 20% de chaque côté
+                    x_range = np.linspace(
+                        data_min - data_range * 0.2,
+                        data_max + data_range * 0.2,
+                        300
+                    )
+
+                    # Fonction de densité de probabilité normale
+                    normal_density = (1 / (std_return * np.sqrt(2 * np.pi))) * \
+                                   np.exp(-0.5 * ((x_range - mean_return) / std_return) ** 2)
+
+                    # Mettre à l'échelle pour correspondre à l'histogramme
+                    hist_counts, _ = np.histogram(monthly_returns_pct, bins=n_bins)
+                    max_hist_count = max(hist_counts) if len(hist_counts) > 0 else 1
+                    max_density = max(normal_density) if len(normal_density) > 0 else 1
+
+                    # Calculer le facteur d'échelle
+                    scale_factor = max_hist_count / max_density if max_density > 0 else 1
+                    scaled_density = normal_density * scale_factor
+
+                    # Ajouter la courbe normale lisse
+                    fig.add_trace(go.Scatter(
+                        x=x_range,
+                        y=scaled_density,
+                        mode='lines',
+                        name='Normal Distribution',
+                        line=dict(color='white', width=3),
+                        showlegend=False,
+                        hovertemplate='<extra></extra>'
+                    ))
+                except:
+                    pass  # Si erreur dans le calcul de la courbe, continuer sans
+
             # Ajouter la ligne de moyenne
             if not np.isnan(mean_return) and not np.isinf(mean_return):
                 fig.add_vline(
@@ -730,8 +771,8 @@ class BacktestAnalyzerPro:
                 start_year = 2018
                 end_year = 2024
 
-            # Titre avec statistiques
-            title_text = f'Distribution of Monthly Returns<br><span style="font-size:14px">{start_year} - {end_year} | {len(monthly_returns_clean)} months | Mean: {mean_return:.1f}% | Std: {std_return:.1f}%</span>'
+            # Titre simple comme dans l'image de référence
+            title_text = f'Distribution of Monthly Returns<br><span style="font-size:14px">{start_year} - {end_year}</span>'
 
             # Mise à jour du layout
             fig.update_layout(
@@ -740,7 +781,7 @@ class BacktestAnalyzerPro:
                     'x': 0.5,
                     'font': {'size': 18, 'color': 'white'}
                 },
-                xaxis_title='Monthly Returns (%)',
+                xaxis_title='',
                 yaxis_title='Occurrences',
                 template='plotly_dark',
                 height=400,
