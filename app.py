@@ -1386,9 +1386,16 @@ def main():
 
                         # Calculs mensuels RÉELS avec vérifications robustes
                         try:
+                            # DEBUG: Afficher les informations sur analyzer.returns
+                            st.write(f"🔍 DEBUG - analyzer.returns is not None: {analyzer.returns is not None}")
+                            if analyzer.returns is not None:
+                                st.write(f"🔍 DEBUG - len(analyzer.returns): {len(analyzer.returns)}")
+                                st.write(f"🔍 DEBUG - analyzer.returns sample: {analyzer.returns.head()}")
+
                             # Calculer les returns mensuels directement ici pour garantir qu'ils existent
                             if analyzer.returns is not None and len(analyzer.returns) > 0:
                                 monthly_returns_calc = analyzer.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+                                st.write(f"🔍 DEBUG - monthly_returns_calc: {monthly_returns_calc}")
 
                                 if len(monthly_returns_calc) > 0:
                                     best_month_val = monthly_returns_calc.max()
@@ -1397,6 +1404,8 @@ def main():
                                     positive_months = len([x for x in monthly_returns_calc if x > 0])
                                     negative_months = len([x for x in monthly_returns_calc if x < 0])
                                     total_months = len(monthly_returns_calc)
+
+                                    st.write(f"🔍 DEBUG - best_month_val: {best_month_val}, worst_month_val: {worst_month_val}, avg_month_val: {avg_month_val}")
                                 else:
                                     # Si pas assez de données pour les mois, utiliser les returns journaliers
                                     best_month_val = analyzer.returns.max()
@@ -1405,11 +1414,15 @@ def main():
                                     positive_months = len([x for x in analyzer.returns if x > 0])
                                     negative_months = len([x for x in analyzer.returns if x < 0])
                                     total_months = len(analyzer.returns)
+
+                                    st.write(f"🔍 DEBUG (daily) - best_month_val: {best_month_val}, worst_month_val: {worst_month_val}")
                             else:
+                                st.write("⚠️ DEBUG - Aucune donnée analyzer.returns disponible")
                                 # Aucune donnée disponible
                                 best_month_val = worst_month_val = avg_month_val = 0
                                 positive_months = negative_months = total_months = 0
                         except Exception as e:
+                            st.write(f"❌ DEBUG - Erreur dans calculs mensuels: {e}")
                             # En cas d'erreur, essayer avec les variables existantes
                             try:
                                 best_month_val = best_month if 'best_month' in locals() else 0
