@@ -862,6 +862,130 @@ class BacktestAnalyzerPro:
             # En cas d'erreur, retourner un graphique vide plutôt que planter
             return go.Figure()
 
+    def create_var_visualization(self, confidence_level=0.05):
+        """
+        Créer une visualisation VaR avec courbe normale et zone de risque
+        """
+        try:
+            if self.returns is None or len(self.returns) == 0:
+                return go.Figure()
+
+            returns = self.returns.dropna()
+            if len(returns) == 0:
+                return go.Figure()
+
+            # Calculer les statistiques du portefeuille
+            mean_return = returns.mean()
+            std_return = returns.std()
+
+            # Calculer VaR au niveau de confiance spécifié (par défaut 5%)
+            var_value = np.percentile(returns, confidence_level * 100)
+
+            # Créer la distribution normale pour visualisation
+            x_range = np.linspace(returns.min() * 1.5, returns.max() * 1.5, 1000)
+            normal_pdf = (1 / (std_return * np.sqrt(2 * np.pi))) * \
+                        np.exp(-0.5 * ((x_range - mean_return) / std_return) ** 2)
+
+            # Créer le graphique
+            fig = go.Figure()
+
+            # Courbe de distribution normale
+            fig.add_trace(go.Scatter(
+                x=x_range * 100,  # Convertir en pourcentage
+                y=normal_pdf,
+                mode='lines',
+                name='Distribution',
+                line=dict(color='lightblue', width=2),
+                fill='tonexty',
+                fillcolor='rgba(173, 216, 230, 0.3)',
+                showlegend=False
+            ))
+
+            # Zone de risque VaR (5% tail)
+            var_x = x_range[x_range <= var_value]
+            var_y = (1 / (std_return * np.sqrt(2 * np.pi))) * \
+                   np.exp(-0.5 * ((var_x - mean_return) / std_return) ** 2)
+
+            fig.add_trace(go.Scatter(
+                x=var_x * 100,
+                y=var_y,
+                mode='lines',
+                name=f'{confidence_level*100}% VaR',
+                line=dict(color='blue', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(70, 130, 180, 0.7)',
+                showlegend=False
+            ))
+
+            # Ligne verticale VaR
+            fig.add_vline(
+                x=var_value * 100,
+                line=dict(color='blue', dash='dash', width=3),
+                annotation_text=f"VaR {confidence_level*100}%: {var_value*100:.1f}%"
+            )
+
+            # Ligne verticale moyenne
+            fig.add_vline(
+                x=mean_return * 100,
+                line=dict(color='black', dash='dash', width=2),
+                annotation_text=f"Mean: {mean_return*100:.1f}%"
+            )
+
+            # Ajouter des annotations pour les valeurs
+            # Estimer la valeur du portefeuille (exemple avec 100k)
+            portfolio_value = 100000
+            var_loss = portfolio_value * abs(var_value)
+
+            fig.update_layout(
+                title={
+                    'text': f'{confidence_level*100:.0f}% VaR<br><span style="font-size:14px">Portfolio Risk Assessment</span>',
+                    'x': 0.5,
+                    'font': {'size': 18, 'color': '#2c3e50'}
+                },
+                xaxis_title='Returns (%)',
+                yaxis_title='Probability Density',
+                template='plotly_white',
+                height=400,
+                showlegend=False,
+                xaxis=dict(
+                    tickformat='.1f',
+                    ticksuffix='%'
+                ),
+                annotations=[
+                    dict(
+                        x=var_value * 100,
+                        y=max(normal_pdf) * 0.3,
+                        text=f"${var_loss:,.0f}<br>Max Loss",
+                        showarrow=True,
+                        arrowhead=2,
+                        arrowcolor="blue",
+                        bgcolor="lightblue",
+                        bordercolor="blue"
+                    ),
+                    dict(
+                        x=mean_return * 100 + (returns.max() - mean_return) * 50,
+                        y=max(normal_pdf) * 0.8,
+                        text=f"${portfolio_value:,.0f}<br>Portfolio Value",
+                        showarrow=False,
+                        bgcolor="lightgray",
+                        bordercolor="gray"
+                    ),
+                    dict(
+                        x=var_value * 100 - 1,
+                        y=max(normal_pdf) * 0.1,
+                        text=f"{confidence_level*100}% Probability",
+                        showarrow=False,
+                        bgcolor="rgba(70, 130, 180, 0.8)",
+                        font=dict(color="white")
+                    )
+                ]
+            )
+
+            return fig
+
+        except Exception as e:
+            return go.Figure()
+
     def generate_downloadable_report(self, metrics):
         """
         Générer un rapport HTML téléchargeable
@@ -2458,6 +2582,9 @@ def main():
 
                             st.subheader("📊 Distribution des Rendements Mensuels")
                             st.plotly_chart(analyzer.create_monthly_returns_distribution(), use_container_width=True)
+
+                            st.subheader("📉 5% VaR Analysis")
+                            st.plotly_chart(analyzer.create_var_visualization(), use_container_width=True)
 
                         if show_advanced:
                             # Tableau complet des métriques
