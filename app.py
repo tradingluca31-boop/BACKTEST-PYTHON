@@ -969,17 +969,26 @@ class BacktestAnalyzerPro:
             # Années comme liste de strings
             year_labels = [str(int(year)) for year in pivot.index]
 
-            # Créer le texte pour chaque cellule
+            # Créer le texte pour chaque cellule avec couleurs adaptées
             text_matrix = []
+            text_colors = []
             for i, year in enumerate(pivot.index):
                 row = []
+                color_row = []
                 for month in range(1, 13):
                     value = pivot.loc[year, month]
                     if pd.notna(value):
                         row.append(f'{value:.2f}')
+                        # Couleur du texte basée sur la valeur pour un meilleur contraste
+                        if abs(value) > 3:  # Valeurs importantes
+                            color_row.append('black')  # Texte noir sur couleurs vives
+                        else:
+                            color_row.append('white')  # Texte blanc sur couleurs pâles
                     else:
                         row.append('')
+                        color_row.append('white')
                 text_matrix.append(row)
+                text_colors.append(color_row)
 
             # Créer la heatmap
             fig = go.Figure(data=go.Heatmap(
@@ -1009,7 +1018,7 @@ class BacktestAnalyzerPro:
                 ),
                 text=text_matrix,
                 texttemplate='%{text}',
-                textfont={"size": 10, "color": "white", "family": "Arial Black"},
+                textfont={"size": 12, "color": "black", "family": "Arial Black"},
                 hovertemplate='<b>%{y}</b> - <b>%{x}</b><br><b>Return:</b> %{z:.2f}%<extra></extra>',
                 showlegend=False
             ))
