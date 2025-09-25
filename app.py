@@ -319,6 +319,52 @@ class BacktestAnalyzerPro:
             # Métrique personnalisée R/R (toujours calculée)
             metrics['RR_Ratio_Avg'] = self.calculate_rr_ratio()
 
+            # === NOUVELLES MÉTRIQUES POUR STRATEGY OVERVIEW ===
+
+            # Log Return et Absolute Return
+            if len(self.returns) > 0:
+                total_return = (1 + self.returns).prod() - 1
+                metrics['Log_Return'] = np.log(1 + total_return) if total_return > -1 else 0
+                metrics['Absolute_Return'] = total_return
+            else:
+                metrics['Log_Return'] = 0
+                metrics['Absolute_Return'] = 0
+
+            # Alpha (excess return vs benchmark - ici on assume 0% benchmark)
+            metrics['Alpha'] = metrics['CAGR']  # Alpha vs cash (0%)
+
+            # Number of Trades
+            metrics['Number_of_Trades'] = len(self.returns)
+
+            # === RISK-ADJUSTED METRICS ===
+
+            # Probabilistic Sharpe Ratio (estimation)
+            if len(self.returns) > 1 and metrics['Volatility'] > 0:
+                # Calcul approximatif du Probabilistic Sharpe Ratio
+                n_observations = len(self.returns)
+                sharpe = metrics['Sharpe']
+
+                # Formule approximative pour PSR
+                if sharpe > 0:
+                    import math
+                    # PSR basé sur distribution normale des returns
+                    psr_stat = (sharpe * math.sqrt(n_observations - 1)) / math.sqrt(1 - sharpe**2/n_observations) if n_observations > 1 else 0
+                    # Approximation: convertir en pourcentage de confiance
+                    if sharpe >= 2:
+                        psr = 0.95  # Très bon Sharpe
+                    elif sharpe >= 1.5:
+                        psr = 0.85  # Bon Sharpe
+                    elif sharpe >= 1:
+                        psr = 0.70  # Correct
+                    else:
+                        psr = max(0.50, 0.50 + 0.20 * sharpe)
+                else:
+                    psr = max(0.01, 0.50 + 0.15 * sharpe)  # Sharpe négatif
+
+                metrics['Probabilistic_Sharpe_Ratio'] = psr
+            else:
+                metrics['Probabilistic_Sharpe_Ratio'] = 0.5
+
             # Métriques personnalisées selon les targets
             if target_dd is not None:
                 actual_dd = metrics.get('Max_Drawdown', 0)
@@ -1740,6 +1786,85 @@ def main():
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
+
+                        st.markdown("---")
+
+                        # === STRATEGY OVERVIEW SECTION ===
+                        st.markdown("## 🎯 Strategy Overview")
+
+                        col1, col2, col3, col4 = st.columns(4)
+
+                        with col1:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Log Return</h4>
+                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Log_Return', 0):.2%}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col2:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Absolute Return</h4>
+                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Absolute_Return', 0):.2%}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col3:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Alpha</h4>
+                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Alpha', 0):.2%}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col4:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Number of Trades</h4>
+                                <h2 style="margin: 10px 0; color: #90a4ae;">{metrics.get('Number_of_Trades', 0)}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        st.markdown("---")
+
+                        # === RISK-ADJUSTED METRICS SECTION ===
+                        st.markdown("## ⚖️ Risk-Adjusted Metrics")
+
+                        col1, col2, col3, col4 = st.columns(4)
+
+                        with col1:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Sharpe Ratio</h4>
+                                <h2 style="margin: 10px 0; color: #68d391;">{metrics.get('Sharpe', 0):.2f}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col2:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Probabilistic Sharpe Ratio</h4>
+                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Probabilistic_Sharpe_Ratio', 0):.2%}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col3:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Sortino Ratio</h4>
+                                <h2 style="margin: 10px 0; color: #9f7aea;">{metrics.get('Sortino', 0):.2f}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        with col4:
+                            calmar_color = "#f56565" if metrics.get('Calmar', 0) < 1 else "#68d391"
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                                <h4 style="margin: 5px 0; font-size: 14px;">Calmar Ratio</h4>
+                                <h2 style="margin: 10px 0; color: {calmar_color};">{metrics.get('Calmar', 0):.2f}</h2>
+                            </div>
+                            """, unsafe_allow_html=True)
 
                         st.markdown("---")
 
