@@ -1079,6 +1079,99 @@ def main():
                         # Calculer métriques
                         metrics = analyzer.calculate_all_metrics(target_dd, target_profit, initial_capital, target_profit_euro, target_profit_total_euro)
 
+                        # Strategy Overview Section
+                        st.markdown("## 🎯 Strategy Overview")
+
+                        # Calculate strategy overview metrics
+                        try:
+                            # Get date range
+                            start_date = analyzer.returns.index[0] if len(analyzer.returns) > 0 else None
+                            end_date = analyzer.returns.index[-1] if len(analyzer.returns) > 0 else None
+
+                            # Calculate trading period in years
+                            if start_date and end_date:
+                                trading_period_years = (end_date - start_date).days / 365.25
+                                start_date_str = start_date.strftime('%Y-%m-%d')
+                                end_date_str = end_date.strftime('%Y-%m-%d')
+                            else:
+                                trading_period_years = 0
+                                start_date_str = "N/A"
+                                end_date_str = "N/A"
+
+                            # Calculate returns
+                            total_return = (1 + analyzer.returns).prod() - 1 if len(analyzer.returns) > 0 else 0
+                            log_return = np.log(1 + total_return) if total_return > -1 else 0
+
+                            # Number of trades/periods
+                            num_periods = len(analyzer.returns)
+                            num_trades = len(analyzer.trades_data) if analyzer.trades_data is not None else num_periods
+
+                            # Average holding period (for trades data)
+                            avg_holding_period = "N/A"
+                            if analyzer.trades_data is not None and 'time_open' in analyzer.trades_data.columns and 'time_close' in analyzer.trades_data.columns:
+                                try:
+                                    open_times = pd.to_datetime(analyzer.trades_data['time_open'], unit='s')
+                                    close_times = pd.to_datetime(analyzer.trades_data['time_close'], unit='s')
+                                    holding_periods = close_times - open_times
+                                    avg_holding = holding_periods.mean()
+                                    if pd.notna(avg_holding):
+                                        days = avg_holding.days
+                                        seconds = avg_holding.seconds
+                                        hours = seconds // 3600
+                                        minutes = (seconds % 3600) // 60
+                                        avg_holding_period = f"{days} days {hours:02d}:{minutes:02d}"
+                                except:
+                                    avg_holding_period = "N/A"
+
+                        except Exception as e:
+                            trading_period_years = 0
+                            start_date_str = "N/A"
+                            end_date_str = "N/A"
+                            total_return = 0
+                            log_return = 0
+                            num_trades = 0
+                            avg_holding_period = "N/A"
+
+                        # Display Strategy Overview in a styled box
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    padding: 25px; border-radius: 15px; color: white; margin: 20px 0;">
+                            <h3 style="text-align: center; margin: 0 0 20px 0;">📊 STRATEGY OVERVIEW</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Trading Period</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{trading_period_years:.1f} Years</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Start Period</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{start_date_str}</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">End Period</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{end_date_str}</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Log Return</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{log_return:.2%}</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Absolute Return</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{total_return:.2%}</h3>
+                                </div>
+                                <div style="text-align: center;">
+                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Number of Trades</h4>
+                                    <h3 style="margin: 5px 0; color: white;">{num_trades}</h3>
+                                </div>
+                            </div>
+                            <div style="text-align: center; margin-top: 15px;">
+                                <h4 style="margin: 5px 0; color: #e8f4f8;">Average Holding Period</h4>
+                                <h3 style="margin: 5px 0; color: white;">{avg_holding_period}</h3>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        st.markdown("---")
+
                         # Afficher métriques clés en cartes stylées
                         st.markdown("## 📈 Métriques Principales")
 
