@@ -879,39 +879,46 @@ class BacktestAnalyzerPro:
             std_return = returns.std()
 
             # Calculer VaR au niveau de confiance spécifié (par défaut 5%)
-            var_value = np.percentile(returns, confidence_level * 100)
+            var_percentile = np.percentile(returns, confidence_level * 100)
+
+            # VaR est exprimé comme une perte potentielle (valeur positive)
+            var_loss = abs(var_percentile) if var_percentile < 0 else var_percentile
 
             # Créer la distribution normale pour visualisation
-            x_range = np.linspace(returns.min() * 1.5, returns.max() * 1.5, 1000)
+            x_min = min(returns.min(), mean_return - 4 * std_return)
+            x_max = max(returns.max(), mean_return + 4 * std_return)
+            x_range = np.linspace(x_min, x_max, 1000)
+
+            # Distribution normale basée sur les statistiques réelles
             normal_pdf = (1 / (std_return * np.sqrt(2 * np.pi))) * \
                         np.exp(-0.5 * ((x_range - mean_return) / std_return) ** 2)
 
             # Créer le graphique
             fig = go.Figure()
 
-            # Courbe de distribution normale
+            # Courbe de distribution normale complète
             fig.add_trace(go.Scatter(
                 x=x_range * 100,  # Convertir en pourcentage
                 y=normal_pdf,
                 mode='lines',
                 name='Distribution',
                 line=dict(color='lightblue', width=2),
-                fill='tonexty',
+                fill='tozeroy',
                 fillcolor='rgba(173, 216, 230, 0.3)',
                 showlegend=False
             ))
 
-            # Zone de risque VaR (5% tail)
-            var_x = x_range[x_range <= var_value]
-            var_y = (1 / (std_return * np.sqrt(2 * np.pi))) * \
-                   np.exp(-0.5 * ((var_x - mean_return) / std_return) ** 2)
+            # Zone de risque VaR - seulement la queue gauche (5%)
+            var_threshold_x = x_range[x_range <= var_percentile]
+            var_threshold_y = (1 / (std_return * np.sqrt(2 * np.pi))) * \
+                   np.exp(-0.5 * ((var_threshold_x - mean_return) / std_return) ** 2)
 
             fig.add_trace(go.Scatter(
-                x=var_x * 100,
-                y=var_y,
+                x=var_threshold_x * 100,
+                y=var_threshold_y,
                 mode='lines',
                 name=f'{confidence_level*100}% VaR',
-                line=dict(color='blue', width=2),
+                line=dict(color='darkblue', width=2),
                 fill='tozeroy',
                 fillcolor='rgba(70, 130, 180, 0.7)',
                 showlegend=False
@@ -919,9 +926,9 @@ class BacktestAnalyzerPro:
 
             # Ligne verticale VaR
             fig.add_vline(
-                x=var_value * 100,
-                line=dict(color='blue', dash='dash', width=3),
-                annotation_text=f"VaR {confidence_level*100}%: {var_value*100:.1f}%"
+                x=var_percentile * 100,
+                line=dict(color='red', dash='dash', width=3),
+                annotation_text=f"VaR {confidence_level*100}%: {var_percentile*100:.1f}%"
             )
 
             # Ligne verticale moyenne
@@ -931,10 +938,10 @@ class BacktestAnalyzerPro:
                 annotation_text=f"Mean: {mean_return*100:.1f}%"
             )
 
-            # Ajouter des annotations pour les valeurs
-            # Estimer la valeur du portefeuille (exemple avec 100k)
-            portfolio_value = 100000
-            var_loss = portfolio_value * abs(var_value)
+            # Calculer les valeurs monétaires (utiliser capital initial si disponible)
+            # Estimer avec 10,000€ par défaut (plus réaliste pour trading individuel)
+            portfolio_value = 10000
+            var_loss_amount = portfolio_value * var_loss
 
             fig.update_layout(
                 title={
@@ -953,30 +960,32 @@ class BacktestAnalyzerPro:
                 ),
                 annotations=[
                     dict(
-                        x=var_value * 100,
-                        y=max(normal_pdf) * 0.3,
-                        text=f"${var_loss:,.0f}<br>Max Loss",
+                        x=var_percentile * 100,
+                        y=max(normal_pdf) * 0.4,
+                        text=f"€{var_loss_amount:,.0f}<br>Max Loss<br>({var_loss*100:.1f}%)",
                         showarrow=True,
                         arrowhead=2,
-                        arrowcolor="blue",
-                        bgcolor="lightblue",
-                        bordercolor="blue"
+                        arrowcolor="red",
+                        bgcolor="rgba(255,255,255,0.9)",
+                        bordercolor="red",
+                        font=dict(size=10)
                     ),
                     dict(
-                        x=mean_return * 100 + (returns.max() - mean_return) * 50,
-                        y=max(normal_pdf) * 0.8,
-                        text=f"${portfolio_value:,.0f}<br>Portfolio Value",
+                        x=mean_return * 100 + std_return * 150,
+                        y=max(normal_pdf) * 0.7,
+                        text=f"€{portfolio_value:,.0f}<br>Portfolio Value",
                         showarrow=False,
-                        bgcolor="lightgray",
-                        bordercolor="gray"
+                        bgcolor="rgba(255,255,255,0.9)",
+                        bordercolor="gray",
+                        font=dict(size=10)
                     ),
                     dict(
-                        x=var_value * 100 - 1,
-                        y=max(normal_pdf) * 0.1,
-                        text=f"{confidence_level*100}% Probability",
+                        x=var_percentile * 100 - std_return * 50,
+                        y=max(normal_pdf) * 0.15,
+                        text=f"{confidence_level*100:.0f}% Probability<br>Tail Risk",
                         showarrow=False,
                         bgcolor="rgba(70, 130, 180, 0.8)",
-                        font=dict(color="white")
+                        font=dict(color="white", size=9)
                     )
                 ]
             )
