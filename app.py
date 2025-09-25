@@ -663,17 +663,31 @@ class BacktestAnalyzerPro:
 
     def create_monthly_returns_distribution(self):
         """
-        Distribution des rendements mensuels - version simplifiée et robuste
+        Distribution des rendements mensuels - calculs corrigés
         """
         try:
-            # Calculer les vrais rendements mensuels
-            monthly_returns = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
+            # Vérifier que nous avons des données
+            if self.returns is None or len(self.returns) == 0:
+                return go.Figure()
+
+            # Calculer les rendements mensuels avec la méthode correcte
+            # Utiliser 'MS' (Month Start) pour un meilleur regroupement
+            monthly_returns = self.returns.resample('MS').apply(lambda x: (1 + x).prod() - 1)
+
+            # Alternative si les données sont déjà des rendements journaliers
+            # monthly_returns = self.returns.resample('MS').sum()
 
             if monthly_returns is None or len(monthly_returns) == 0:
                 return go.Figure()
 
-            # Nettoyer les données
+            # Nettoyer les données et filtrer les valeurs aberrantes
             monthly_returns_clean = monthly_returns.dropna()
+
+            # Filtrer les valeurs extrêmes qui pourraient être des erreurs (> 100% ou < -100%)
+            monthly_returns_clean = monthly_returns_clean[
+                (monthly_returns_clean > -1.0) & (monthly_returns_clean < 5.0)
+            ]
+
             if len(monthly_returns_clean) < 1:
                 return go.Figure()
 
@@ -681,21 +695,26 @@ class BacktestAnalyzerPro:
 
             # Statistiques réelles
             mean_return = monthly_returns_pct.mean()
+            std_return = monthly_returns_pct.std()
 
-            # Créer l'histogramme
+            # Créer l'histogramme avec un nombre approprié de bins
             fig = go.Figure()
+
+            # Calculer le nombre optimal de bins
+            n_bins = min(30, max(10, int(len(monthly_returns_pct) / 2)))
 
             # Histogramme des rendements mensuels réels
             fig.add_trace(go.Histogram(
                 x=monthly_returns_pct,
-                nbinsx=min(15, max(5, len(monthly_returns_pct))),
+                nbinsx=n_bins,
                 name='Monthly Returns',
                 marker_color='#00d4aa',
                 opacity=0.8,
-                showlegend=False
+                showlegend=False,
+                autobinx=True
             ))
 
-            # Ajouter seulement une ligne pour la moyenne - pas de courbe compliquée
+            # Ajouter la ligne de moyenne
             if not np.isnan(mean_return) and not np.isinf(mean_return):
                 fig.add_vline(
                     x=mean_return,
@@ -711,14 +730,17 @@ class BacktestAnalyzerPro:
                 start_year = 2018
                 end_year = 2024
 
+            # Titre avec statistiques
+            title_text = f'Distribution of Monthly Returns<br><span style="font-size:14px">{start_year} - {end_year} | {len(monthly_returns_clean)} months | Mean: {mean_return:.1f}% | Std: {std_return:.1f}%</span>'
+
             # Mise à jour du layout
             fig.update_layout(
                 title={
-                    'text': f'Distribution of Monthly Returns<br><span style="font-size:14px">{start_year} - {end_year}</span>',
+                    'text': title_text,
                     'x': 0.5,
                     'font': {'size': 18, 'color': 'white'}
                 },
-                xaxis_title='',
+                xaxis_title='Monthly Returns (%)',
                 yaxis_title='Occurrences',
                 template='plotly_dark',
                 height=400,
@@ -727,11 +749,13 @@ class BacktestAnalyzerPro:
                 font=dict(color='white'),
                 xaxis=dict(
                     gridcolor='#333333',
-                    tickformat='.0f',
-                    ticksuffix='%'
+                    tickformat='.1f',
+                    ticksuffix='%',
+                    showgrid=True
                 ),
                 yaxis=dict(
-                    gridcolor='#333333'
+                    gridcolor='#333333',
+                    showgrid=True
                 )
             )
 
