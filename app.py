@@ -998,8 +998,7 @@ class BacktestAnalyzerPro:
                 zmax=8,
                 showscale=True,
                 colorbar=dict(
-                    title="Return (%)",
-                    titleside="right",
+                    title=dict(text="Return (%)", side="right"),
                     tickmode="linear",
                     tick0=-8,
                     dtick=2
