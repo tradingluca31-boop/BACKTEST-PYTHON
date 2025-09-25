@@ -1318,7 +1318,10 @@ def main():
                         st.markdown("### 🎯 Expected Returns and VaR")
 
                         try:
-                            if len(analyzer.returns) > 0:
+                            st.write(f"DEBUG VaR: analyzer.returns available: {analyzer.returns is not None and len(analyzer.returns) > 0}")
+
+                            # S'assurer que les returns existent et ne sont pas vides
+                            if analyzer.returns is not None and len(analyzer.returns) > 0:
                                 # Expected Daily Return
                                 expected_daily = analyzer.returns.mean()
 
@@ -1329,7 +1332,6 @@ def main():
                                 expected_yearly = (1 + expected_daily) ** 252 - 1
 
                                 # Risk of Ruin (estimation basée sur la probabilité de perte importante)
-                                # Approximation : probabilité de drawdown > 50%
                                 daily_vol = analyzer.returns.std()
                                 if daily_vol > 0:
                                     # Calcul simplifié du Risk of Ruin
@@ -1345,14 +1347,44 @@ def main():
                                     risk_of_ruin = 0.0
 
                                 # Daily VaR (5% VaR - perte maximale dans 95% des cas)
-                                daily_var = np.percentile(analyzer.returns, 5) if len(analyzer.returns) > 0 else 0
+                                daily_var = np.percentile(analyzer.returns, 5)
 
+                                st.write(f"DEBUG VaR: expected_daily={expected_daily:.4f}, daily_var={daily_var:.4f}")
+
+                            elif analyzer.equity_curve is not None and len(analyzer.equity_curve) > 0:
+                                # Fallback: calculer à partir de equity_curve
+                                equity_returns = analyzer.equity_curve.pct_change().dropna()
+                                if len(equity_returns) > 0:
+                                    expected_daily = equity_returns.mean()
+                                    expected_monthly = (1 + expected_daily) ** 21 - 1
+                                    expected_yearly = (1 + expected_daily) ** 252 - 1
+
+                                    daily_vol = equity_returns.std()
+                                    if daily_vol > 0:
+                                        negative_returns = equity_returns[equity_returns < 0]
+                                        if len(negative_returns) > 0:
+                                            avg_loss = abs(negative_returns.mean())
+                                            loss_probability = len(negative_returns) / len(equity_returns)
+                                            risk_of_ruin = min(loss_probability * (avg_loss / expected_daily) if expected_daily > 0 else 0.5, 1.0)
+                                        else:
+                                            risk_of_ruin = 0.0
+                                    else:
+                                        risk_of_ruin = 0.0
+
+                                    daily_var = np.percentile(equity_returns, 5)
+                                    st.write(f"DEBUG VaR (equity): expected_daily={expected_daily:.4f}, daily_var={daily_var:.4f}")
+                                else:
+                                    expected_daily = expected_monthly = expected_yearly = 0
+                                    risk_of_ruin = 0
+                                    daily_var = 0
                             else:
                                 expected_daily = expected_monthly = expected_yearly = 0
                                 risk_of_ruin = 0
                                 daily_var = 0
+                                st.write("DEBUG VaR: Aucune donnée disponible")
 
                         except Exception as e:
+                            st.error(f"DEBUG VaR: Erreur calcul: {e}")
                             expected_daily = expected_monthly = expected_yearly = 0
                             risk_of_ruin = 0
                             daily_var = 0
