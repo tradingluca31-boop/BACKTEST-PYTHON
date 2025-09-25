@@ -286,7 +286,7 @@ class BacktestAnalyzerPro:
                 metrics['Profit_Factor'] = gross_profits / gross_losses if gross_losses > 0 else 0
 
                 # VaR et autres métriques
-                metrics['VaR'] = np.percentile(returns, 5)
+                metrics['VaR'] = returns.quantile(0.05)
                 var_threshold = metrics['VaR']
                 tail_losses = returns[returns <= var_threshold]
                 metrics['CVaR'] = tail_losses.mean() if len(tail_losses) > 0 else metrics['VaR']
@@ -1101,7 +1101,8 @@ def main():
 
                                 # Calculate returns
                                 total_return = (1 + analyzer.returns).prod() - 1
-                                log_return = np.log(1 + total_return) if total_return > -1 else 0
+                                import math
+                                log_return = math.log(1 + total_return) if total_return > -1 else 0
 
                                 # Number of periods
                                 num_periods = len(analyzer.returns)
@@ -1118,7 +1119,7 @@ def main():
                                 # Calculate returns from equity curve
                                 equity_returns = analyzer.equity_curve.pct_change().dropna()
                                 total_return = (analyzer.equity_curve.iloc[-1] / analyzer.equity_curve.iloc[0]) - 1
-                                log_return = np.log(1 + total_return) if total_return > -1 else 0
+                                log_return = math.log(1 + total_return) if total_return > -1 else 0
 
                                 num_periods = len(analyzer.equity_curve)
 
@@ -1347,7 +1348,7 @@ def main():
                                     risk_of_ruin = 0.0
 
                                 # Daily VaR (5% VaR - perte maximale dans 95% des cas)
-                                daily_var = np.percentile(analyzer.returns, 5)
+                                daily_var = analyzer.returns.quantile(0.05)
 
                                 st.write(f"DEBUG VaR: expected_daily={expected_daily:.4f}, daily_var={daily_var:.4f}")
 
@@ -1371,7 +1372,7 @@ def main():
                                     else:
                                         risk_of_ruin = 0.0
 
-                                    daily_var = np.percentile(equity_returns, 5)
+                                    daily_var = equity_returns.quantile(0.05)
                                     st.write(f"DEBUG VaR (equity): expected_daily={expected_daily:.4f}, daily_var={daily_var:.4f}")
                                 else:
                                     expected_daily = expected_monthly = expected_yearly = 0
