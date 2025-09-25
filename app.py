@@ -663,84 +663,53 @@ class BacktestAnalyzerPro:
 
     def create_monthly_returns_distribution(self):
         """
-        Distribution des rendements mensuels avec courbe normale
+        Distribution des rendements mensuels - version simplifiée et robuste
         """
         try:
             # Calculer les vrais rendements mensuels
             monthly_returns = self.returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
-            monthly_returns_pct = monthly_returns * 100  # Convertir en pourcentage
 
-            if len(monthly_returns_pct) < 2:
+            if monthly_returns is None or len(monthly_returns) == 0:
                 return go.Figure()
+
+            # Nettoyer les données
+            monthly_returns_clean = monthly_returns.dropna()
+            if len(monthly_returns_clean) < 1:
+                return go.Figure()
+
+            monthly_returns_pct = monthly_returns_clean * 100  # Convertir en pourcentage
 
             # Statistiques réelles
             mean_return = monthly_returns_pct.mean()
-            std_return = monthly_returns_pct.std()
 
             # Créer l'histogramme
             fig = go.Figure()
 
-            # Histogramme des rendements mensuels réels avec comptage réel
+            # Histogramme des rendements mensuels réels
             fig.add_trace(go.Histogram(
                 x=monthly_returns_pct,
-                nbinsx=min(20, max(8, len(monthly_returns_pct)//2)),
+                nbinsx=min(15, max(5, len(monthly_returns_pct))),
                 name='Monthly Returns',
                 marker_color='#00d4aa',
                 opacity=0.8,
-                histnorm='count',  # Utiliser le comptage réel
                 showlegend=False
             ))
 
-            # Créer une courbe lisse basée sur les données réelles (KDE approximation)
-            try:
-                from scipy import stats
-                if len(monthly_returns_pct) > 3 and monthly_returns_pct.std() > 0:
-                    # Vérifier que les données ne sont pas toutes identiques
-                    unique_values = monthly_returns_pct.nunique()
-                    if unique_values > 1:
-                        # Densité empirique avec noyau gaussien
-                        kde = stats.gaussian_kde(monthly_returns_pct.dropna())
-
-                        # Calculer la plage de données valides
-                        data_min = monthly_returns_pct.min()
-                        data_max = monthly_returns_pct.max()
-                        data_range = data_max - data_min
-
-                        if data_range > 0:
-                            x_range = np.linspace(data_min - data_range * 0.1,
-                                                data_max + data_range * 0.1, 200)
-                            density = kde(x_range)
-
-                            # Ajuster l'échelle pour correspondre à l'histogramme
-                            hist_counts, _ = np.histogram(monthly_returns_pct,
-                                                        bins=min(20, max(8, len(monthly_returns_pct)//2)))
-                            max_hist = max(hist_counts) if len(hist_counts) > 0 else 1
-                            max_density = max(density) if len(density) > 0 else 1
-                            scale_factor = max_hist / max_density if max_density > 0 else 1
-                            density_scaled = density * scale_factor
-
-                            # Ajouter la courbe lisse des données réelles
-                            fig.add_trace(go.Scatter(
-                                x=x_range,
-                                y=density_scaled,
-                                mode='lines',
-                                name='Empirical Distribution',
-                                line=dict(color='white', width=3),
-                                showlegend=False
-                            ))
-            except (ImportError, Exception) as e:
-                pass  # Si scipy n'est pas disponible ou erreur, continuer sans la courbe
-
-            # Ligne verticale pour la moyenne
-            fig.add_vline(
-                x=mean_return,
-                line=dict(color='red', dash='dash', width=2),
-                annotation_text=f"Mean: {mean_return:.1f}%"
-            )
+            # Ajouter seulement une ligne pour la moyenne - pas de courbe compliquée
+            if not np.isnan(mean_return) and not np.isinf(mean_return):
+                fig.add_vline(
+                    x=mean_return,
+                    line=dict(color='red', dash='dash', width=2),
+                    annotation_text=f"Mean: {mean_return:.1f}%"
+                )
 
             # Calculer les périodes réelles
-            start_year = monthly_returns.index[0].year if len(monthly_returns) > 0 else 2018
-            end_year = monthly_returns.index[-1].year if len(monthly_returns) > 0 else 2024
+            if len(monthly_returns_clean) > 0:
+                start_year = monthly_returns_clean.index[0].year
+                end_year = monthly_returns_clean.index[-1].year
+            else:
+                start_year = 2018
+                end_year = 2024
 
             # Mise à jour du layout
             fig.update_layout(
@@ -749,7 +718,7 @@ class BacktestAnalyzerPro:
                     'x': 0.5,
                     'font': {'size': 18, 'color': 'white'}
                 },
-                xaxis_title='',  # Pas de titre sur l'axe X
+                xaxis_title='',
                 yaxis_title='Occurrences',
                 template='plotly_dark',
                 height=400,
@@ -769,7 +738,7 @@ class BacktestAnalyzerPro:
             return fig
 
         except Exception as e:
-            st.warning(f"Erreur création distribution mensuelle: {e}")
+            # En cas d'erreur, retourner un graphique vide plutôt que planter
             return go.Figure()
 
     def generate_downloadable_report(self, metrics):
