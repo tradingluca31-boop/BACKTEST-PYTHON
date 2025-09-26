@@ -1766,14 +1766,21 @@ class BacktestAnalyzerPro:
         Graphique des 5 pires périodes de drawdown avec courbe d'equity RÉELLE
         """
         try:
-            # Utiliser les vraies données de trades MT5 si disponibles
+            # Debug: forcer l'utilisation des vraies données de trades MT5
+            print("DEBUG DRAWDOWN: Recherche des données MT5...")
             source_data = None
+
             if hasattr(self, 'original_trades_data') and self.original_trades_data is not None:
                 source_data = self.original_trades_data
+                print(f"DEBUG: Utilisation original_trades_data avec {len(source_data)} trades")
             elif hasattr(self, 'trades_data') and self.trades_data is not None:
                 source_data = self.trades_data
+                print(f"DEBUG: Utilisation trades_data avec {len(source_data)} trades")
+            else:
+                print("DEBUG: Aucune donnée de trades trouvée")
 
             if source_data is not None and 'time_close' in source_data.columns:
+                print("DEBUG: Calcul des drawdowns avec les vraies données MT5")
                 # Créer l'equity curve réelle
                 trades_df = source_data.copy()
                 trades_df['close_date'] = pd.to_datetime(trades_df['time_close'], unit='s')
@@ -1790,6 +1797,7 @@ class BacktestAnalyzerPro:
 
             else:
                 # Fallback vers equity curve basique
+                print("DEBUG: FALLBACK vers equity curve basique - PAS OPTIMAL!")
                 if self.equity_curve is None or len(self.equity_curve) == 0:
                     if self.returns is None or len(self.returns) == 0:
                         return go.Figure()
