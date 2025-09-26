@@ -951,37 +951,43 @@ class BacktestAnalyzerPro:
                     return go.Figure()
                 self.equity_curve = (1 + self.returns).cumprod()
 
-            # Méthode directe basée sur l'equity curve pour éviter les problèmes de sparse data
-            # Grouper par mois et prendre les valeurs début/fin de mois
-            equity_monthly = self.equity_curve.resample('M').agg(['first', 'last'])
-
-            # Calculer les rendements mensuels réels: (fin - début) / début
+            # Nouvelle méthode plus robuste: calculer les rendements mensuels directement
             monthly_returns_data = []
 
-            for date_idx in equity_monthly.index:
-                first_val = equity_monthly.loc[date_idx, 'first']
-                last_val = equity_monthly.loc[date_idx, 'last']
+            # Parcourir chaque année-mois et calculer le rendement
+            equity_by_date = self.equity_curve.copy()
 
-                # Calculer le rendement mensuel
-                if pd.notna(first_val) and pd.notna(last_val) and first_val != 0:
-                    monthly_return = (last_val - first_val) / first_val
+            # Obtenir toutes les combinaisons année-mois présentes dans les données
+            years_months = equity_by_date.index.to_period('M').unique()
 
-                    monthly_returns_data.append({
-                        'date': date_idx,
-                        'year': date_idx.year,
-                        'month': date_idx.month,
-                        'return': monthly_return * 100  # Convertir en pourcentage
-                    })
+            for period in years_months:
+                year = period.year
+                month = period.month
+
+                # Filtrer les données pour ce mois
+                month_data = equity_by_date[equity_by_date.index.to_period('M') == period]
+
+                if len(month_data) > 0:
+                    # Prendre la première et dernière valeur du mois
+                    start_value = month_data.iloc[0]
+                    end_value = month_data.iloc[-1]
+
+                    # Calculer le rendement mensuel
+                    if start_value != 0 and pd.notna(start_value) and pd.notna(end_value):
+                        monthly_return = (end_value - start_value) / start_value * 100
+
+                        monthly_returns_data.append({
+                            'year': year,
+                            'month': month,
+                            'return': monthly_return
+                        })
 
             if len(monthly_returns_data) == 0:
                 st.warning("Pas assez de données pour créer la heatmap mensuelle")
                 return go.Figure()
 
-            # Créer DataFrame à partir des données calculées
-            monthly_data = monthly_returns_data
-
             # Convertir en DataFrame
-            df = pd.DataFrame(monthly_data)
+            df = pd.DataFrame(monthly_returns_data)
 
             # Créer la matrice pivot
             pivot = df.pivot(index='year', columns='month', values='return')
@@ -991,13 +997,29 @@ class BacktestAnalyzerPro:
                 if month not in pivot.columns:
                     pivot[month] = np.nan
 
-            # Réorganiser les colonnes dans l'ordre chronologique
-            pivot = pivot.reindex(columns=range(1, 13))
+            # Calculer les totaux annuels
+            yearly_totals = []
+            for year in pivot.index:
+                year_data = pivot.loc[year]
+                # Somme des rendements mensuels (approximation simple)
+                valid_returns = year_data.dropna()
+                if len(valid_returns) > 0:
+                    yearly_total = valid_returns.sum()
+                    yearly_totals.append(yearly_total)
+                else:
+                    yearly_totals.append(np.nan)
+
+            # Ajouter la colonne "Year Total"
+            pivot[13] = yearly_totals
+
+            # Réorganiser les colonnes dans l'ordre chronologique + Year Total
+            column_order = list(range(1, 13)) + [13]
+            pivot = pivot.reindex(columns=column_order)
             pivot = pivot.sort_index()  # Trier par années
 
-            # Labels des mois
+            # Labels des mois + Year Total
             month_labels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-                           'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+                           'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'YEAR']
 
             # Années comme liste de strings
             year_labels = [str(int(year)) for year in pivot.index]
@@ -1008,8 +1030,9 @@ class BacktestAnalyzerPro:
             for i, year in enumerate(pivot.index):
                 row = []
                 color_row = []
-                for month in range(1, 13):
-                    value = pivot.loc[year, month]
+                # Mois 1-12 + Year Total (colonne 13)
+                for col in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]:
+                    value = pivot.loc[year, col]
                     if pd.notna(value):
                         row.append(f'{value:.2f}')
                         # Couleur du texte basée sur la valeur pour un meilleur contraste
