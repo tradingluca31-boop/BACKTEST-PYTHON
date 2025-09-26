@@ -1950,24 +1950,57 @@ class BacktestAnalyzerPro:
 
     def create_monthly_returns_distribution(self):
         """
-        Distribution des rendements mensuels avec courbe normale
+        Distribution des rendements mensuels avec courbe normale - utilise les vraies données MT5
         """
         try:
-            if self.equity_curve is None or len(self.equity_curve) == 0:
-                if self.returns is None or len(self.returns) == 0:
-                    return go.Figure()
-                self.equity_curve = (1 + self.returns).cumprod()
+            # Essayer d'utiliser les vraies données de trades MT5
+            source_data = None
+            if hasattr(self, 'original_trades_data') and self.original_trades_data is not None:
+                source_data = self.original_trades_data
+            elif hasattr(self, 'trades_data') and self.trades_data is not None:
+                source_data = self.trades_data
 
-            # Calculer les rendements mensuels
-            equity_monthly = self.equity_curve.resample('M').agg(['first', 'last'])
             monthly_returns = []
 
-            for date_idx in equity_monthly.index:
-                first_val = equity_monthly.loc[date_idx, 'first']
-                last_val = equity_monthly.loc[date_idx, 'last']
-                if pd.notna(first_val) and pd.notna(last_val) and first_val != 0:
-                    monthly_return = (last_val - first_val) / first_val * 100
-                    monthly_returns.append(monthly_return)
+            if source_data is not None and 'time_close' in source_data.columns:
+                # Utiliser les vraies données de trades pour calculer les rendements mensuels
+                trades_df = source_data.copy()
+                trades_df['close_date'] = pd.to_datetime(trades_df['time_close'], unit='s')
+                trades_df_sorted = trades_df.sort_values('close_date')
+
+                initial_capital = 10000
+                trades_df_sorted['equity'] = initial_capital + trades_df_sorted['profit'].cumsum()
+
+                equity_series = pd.Series(trades_df_sorted['equity'].values, index=trades_df_sorted['close_date'])
+
+                # Calculer les rendements mensuels basés sur l'equity réelle
+                for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
+                    for month in range(1, 13):
+                        month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
+                        month_data = equity_series[month_mask]
+
+                        if len(month_data) > 0:
+                            start_value = month_data.iloc[0]
+                            end_value = month_data.iloc[-1]
+
+                            if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
+                                monthly_return = ((end_value - start_value) / start_value) * 100
+                                monthly_returns.append(monthly_return)
+
+            else:
+                # Fallback vers equity curve basique
+                if self.equity_curve is None or len(self.equity_curve) == 0:
+                    if self.returns is None or len(self.returns) == 0:
+                        return go.Figure()
+                    self.equity_curve = (1 + self.returns).cumprod()
+
+                equity_monthly = self.equity_curve.resample('M').agg(['first', 'last'])
+                for date_idx in equity_monthly.index:
+                    first_val = equity_monthly.loc[date_idx, 'first']
+                    last_val = equity_monthly.loc[date_idx, 'last']
+                    if pd.notna(first_val) and pd.notna(last_val) and first_val != 0:
+                        monthly_return = (last_val - first_val) / first_val * 100
+                        monthly_returns.append(monthly_return)
 
             if len(monthly_returns) == 0:
                 return go.Figure()
