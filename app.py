@@ -1007,25 +1007,35 @@ class BacktestAnalyzerPro:
                     # Capital initial
                     initial_capital = 10000
 
-                    # Pour chaque mois avec des trades
-                    for (year, month), total_profit in monthly_profits.items():
-                        # Trouver l'equity au début du mois
-                        month_start = pd.Timestamp(year, month, 1)
+                    # Créer une série temporelle d'equity curve
+                    equity_series = pd.Series(index=trades_df_sorted['close_date'],
+                                            data=initial_capital + trades_df_sorted['cumulative_profit'].values)
 
-                        # Trades avant ce mois
-                        before_month = trades_df_sorted[trades_df_sorted['close_date'] < month_start]
-                        start_equity = initial_capital
-                        if len(before_month) > 0:
-                            start_equity = initial_capital + before_month['cumulative_profit'].iloc[-1]
+                    # Ajouter le point de départ
+                    equity_series = pd.concat([
+                        pd.Series([initial_capital], index=[trades_df_sorted['close_date'].iloc[0] - pd.Timedelta(days=1)]),
+                        equity_series
+                    ]).sort_index()
 
-                        # Calculer le rendement mensuel
-                        monthly_return = (total_profit / start_equity) * 100
+                    print(f"DEBUG - Equity curve créé avec {len(equity_series)} points")
 
-                        monthly_returns_data.append({
-                            'year': int(year),
-                            'month': int(month),
-                            'return': monthly_return
-                        })
+                    # Calculer les rendements mensuels de manière correcte
+                    # Méthode 1: Resample sur les fins de mois et calculer les rendements
+                    monthly_equity = equity_series.resample('ME').last()
+
+                    for i in range(1, len(monthly_equity)):
+                        start_equity = monthly_equity.iloc[i-1]
+                        end_equity = monthly_equity.iloc[i]
+
+                        if start_equity > 0 and pd.notna(start_equity) and pd.notna(end_equity):
+                            monthly_return = ((end_equity - start_equity) / start_equity) * 100
+
+                            month_date = monthly_equity.index[i]
+                            monthly_returns_data.append({
+                                'year': int(month_date.year),
+                                'month': int(month_date.month),
+                                'return': monthly_return
+                            })
 
                     print(f"DEBUG - {len(monthly_returns_data)} mois de données calculés")
 
@@ -1072,14 +1082,19 @@ class BacktestAnalyzerPro:
                 if month not in pivot.columns:
                     pivot[month] = np.nan
 
-            # Calculer les totaux annuels
+            # Calculer les totaux annuels CORRECTEMENT avec composition
             yearly_totals = []
             for year in pivot.index:
                 year_data = pivot.loc[year]
-                # Somme des rendements mensuels (approximation simple)
+                # Rendement composé correct: (1 + r1) * (1 + r2) * ... - 1
                 valid_returns = year_data.dropna()
                 if len(valid_returns) > 0:
-                    yearly_total = valid_returns.sum()
+                    # Convertir les pourcentages en décimaux et calculer le rendement composé
+                    compound_return = 1.0
+                    for monthly_return in valid_returns:
+                        compound_return *= (1 + monthly_return / 100)
+                    # Reconvertir en pourcentage
+                    yearly_total = (compound_return - 1) * 100
                     yearly_totals.append(yearly_total)
                 else:
                     yearly_totals.append(np.nan)
