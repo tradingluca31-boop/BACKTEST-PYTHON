@@ -1813,7 +1813,7 @@ class BacktestAnalyzerPro:
                 current_dd = drawdowns.iloc[i]
                 current_hwm = hwm.iloc[i]
 
-                if current_dd < -0.1 and not in_drawdown:  # Début drawdown
+                if current_dd < -0.5 and not in_drawdown:  # Début drawdown (seuil plus strict : -0.5%)
                     in_drawdown = True
                     start_idx = i
                     start_date = date
@@ -1826,6 +1826,30 @@ class BacktestAnalyzerPro:
                     end_idx = i
                     max_dd = drawdowns.iloc[start_idx:end_idx+1].min()
 
+                    # Filtrer : ne garder que les drawdowns significatifs (> -1% ou durée > 7 jours)
+                    duration_days = (end_date - start_date).days
+                    if max_dd < -1.0 or duration_days > 7:
+                        drawdown_periods.append({
+                            'start': start_date,
+                            'end': end_date,
+                            'max_drawdown': max_dd,
+                            'start_idx': start_idx,
+                            'end_idx': end_idx,
+                            'peak_equity': peak_equity
+                        })
+                        print(f"DEBUG FIN DD SIGNIFICATIF: {end_date.strftime('%Y-%m-%d')} | Max DD: {max_dd:.2f}% | Durée: {duration_days}j")
+                    else:
+                        print(f"DEBUG DD IGNORÉ (trop petit): {end_date.strftime('%Y-%m-%d')} | Max DD: {max_dd:.2f}% | Durée: {duration_days}j")
+
+            # Si on finit en drawdown, l'ajouter (avec même filtre)
+            if in_drawdown:
+                end_date = equity_series.index[-1]
+                end_idx = len(equity_series) - 1
+                max_dd = drawdowns.iloc[start_idx:end_idx+1].min()
+
+                # Appliquer le même filtre
+                duration_days = (end_date - start_date).days
+                if max_dd < -1.0 or duration_days > 7:
                     drawdown_periods.append({
                         'start': start_date,
                         'end': end_date,
@@ -1834,22 +1858,9 @@ class BacktestAnalyzerPro:
                         'end_idx': end_idx,
                         'peak_equity': peak_equity
                     })
-                    print(f"DEBUG FIN DD: {end_date.strftime('%Y-%m-%d')} | Max DD: {max_dd:.2f}%")
-
-            # Si on finit en drawdown, l'ajouter
-            if in_drawdown:
-                end_date = equity_series.index[-1]
-                end_idx = len(equity_series) - 1
-                max_dd = drawdowns.iloc[start_idx:end_idx+1].min()
-                drawdown_periods.append({
-                    'start': start_date,
-                    'end': end_date,
-                    'max_drawdown': max_dd,
-                    'start_idx': start_idx,
-                    'end_idx': end_idx,
-                    'peak_equity': peak_equity
-                })
-                print(f"DEBUG DD EN COURS: {end_date.strftime('%Y-%m-%d')} | Max DD: {max_dd:.2f}%")
+                    print(f"DEBUG DD EN COURS SIGNIFICATIF: {end_date.strftime('%Y-%m-%d')} | Max DD: {max_dd:.2f}% | Durée: {duration_days}j")
+                else:
+                    print(f"DEBUG DD EN COURS IGNORÉ (trop petit): {end_date.strftime('%Y-%m-%d')} | Max DD: {max_dd:.2f}% | Durée: {duration_days}j")
 
             print(f"DEBUG: Total {len(drawdown_periods)} périodes de drawdown détectées")
 
