@@ -1763,39 +1763,87 @@ class BacktestAnalyzerPro:
 
     def create_worst_drawdowns_chart(self):
         """
-        Graphique des 5 pires périodes de drawdown avec courbe d'equity
+        Graphique des 5 pires périodes de drawdown avec courbe d'equity RÉELLE
         """
         try:
-            if self.equity_curve is None or len(self.equity_curve) == 0:
-                if self.returns is None or len(self.returns) == 0:
-                    return go.Figure()
-                self.equity_curve = (1 + self.returns).cumprod()
+            # Utiliser les vraies données de trades MT5 si disponibles
+            source_data = None
+            if hasattr(self, 'original_trades_data') and self.original_trades_data is not None:
+                source_data = self.original_trades_data
+            elif hasattr(self, 'trades_data') and self.trades_data is not None:
+                source_data = self.trades_data
 
-            # Calculer les drawdowns
-            rolling_max = self.equity_curve.expanding().max()
-            drawdowns = (self.equity_curve - rolling_max) / rolling_max * 100
+            if source_data is not None and 'time_close' in source_data.columns:
+                # Créer l'equity curve réelle
+                trades_df = source_data.copy()
+                trades_df['close_date'] = pd.to_datetime(trades_df['time_close'], unit='s')
+                trades_df_sorted = trades_df.sort_values('close_date')
 
-            # Identifier les périodes de drawdown
-            in_drawdown = drawdowns < -0.1  # Seuil minimal de -0.1%
+                initial_capital = 10000
+                trades_df_sorted['equity'] = initial_capital + trades_df_sorted['profit'].cumsum()
+
+                equity_series = pd.Series(trades_df_sorted['equity'].values, index=trades_df_sorted['close_date'])
+
+                # Calculer les drawdowns depuis High Water Mark
+                hwm = equity_series.expanding().max()  # High Water Mark cumulatif
+                drawdowns = (equity_series - hwm) / hwm * 100  # Drawdown en %
+
+            else:
+                # Fallback vers equity curve basique
+                if self.equity_curve is None or len(self.equity_curve) == 0:
+                    if self.returns is None or len(self.returns) == 0:
+                        return go.Figure()
+                    self.equity_curve = (1 + self.returns).cumprod()
+
+                equity_series = self.equity_curve.copy()
+                hwm = equity_series.expanding().max()
+                drawdowns = (equity_series - hwm) / hwm * 100
+
+            # Identifier les périodes de drawdown avec la méthode correcte
             drawdown_periods = []
-
+            in_drawdown = False
             start_idx = None
-            for i, is_dd in enumerate(in_drawdown):
-                if is_dd and start_idx is None:
+            start_date = None
+            peak_equity = None
+
+            for i, (date, eq) in enumerate(equity_series.items()):
+                current_dd = drawdowns.iloc[i]
+                current_hwm = hwm.iloc[i]
+
+                if current_dd < -0.1 and not in_drawdown:  # Début drawdown
+                    in_drawdown = True
                     start_idx = i
-                elif not is_dd and start_idx is not None:
-                    end_idx = i - 1
-                    period_dd = drawdowns.iloc[start_idx:end_idx+1]
-                    if len(period_dd) > 0:
-                        max_dd = period_dd.min()
-                        drawdown_periods.append({
-                            'start': drawdowns.index[start_idx],
-                            'end': drawdowns.index[end_idx],
-                            'max_drawdown': max_dd,
-                            'start_idx': start_idx,
-                            'end_idx': end_idx
-                        })
-                    start_idx = None
+                    start_date = date
+                    peak_equity = current_hwm
+
+                elif current_dd >= 0 and in_drawdown:  # Fin drawdown
+                    in_drawdown = False
+                    end_date = date
+                    end_idx = i
+                    max_dd = drawdowns.iloc[start_idx:end_idx+1].min()
+
+                    drawdown_periods.append({
+                        'start': start_date,
+                        'end': end_date,
+                        'max_drawdown': max_dd,
+                        'start_idx': start_idx,
+                        'end_idx': end_idx,
+                        'peak_equity': peak_equity
+                    })
+
+            # Si on finit en drawdown, l'ajouter
+            if in_drawdown:
+                end_date = equity_series.index[-1]
+                end_idx = len(equity_series) - 1
+                max_dd = drawdowns.iloc[start_idx:end_idx+1].min()
+                drawdown_periods.append({
+                    'start': start_date,
+                    'end': end_date,
+                    'max_drawdown': max_dd,
+                    'start_idx': start_idx,
+                    'end_idx': end_idx,
+                    'peak_equity': peak_equity
+                })
 
             # Prendre les 5 pires
             worst_5 = sorted(drawdown_periods, key=lambda x: x['max_drawdown'])[:5]
@@ -1803,10 +1851,17 @@ class BacktestAnalyzerPro:
             # Créer le graphique
             fig = go.Figure()
 
-            # Courbe d'equity principale
-            equity_pct = (self.equity_curve - 1) * 100  # Convertir en pourcentages
+            # Courbe d'equity principale (utiliser la vraie equity_series)
+            if source_data is not None and 'time_close' in source_data.columns:
+                # Convertir en pourcentages de rendement depuis le capital initial
+                initial_capital = 10000
+                equity_pct = ((equity_series - initial_capital) / initial_capital) * 100
+            else:
+                # Fallback pour equity curve normalisée
+                equity_pct = (equity_series - 1) * 100
+
             fig.add_trace(go.Scatter(
-                x=equity_pct.index,
+                x=equity_series.index,
                 y=equity_pct.values,
                 mode='lines',
                 name='Portfolio Returns',
@@ -1827,8 +1882,8 @@ class BacktestAnalyzerPro:
                     )
 
             # Dates de début et fin
-            start_date = equity_pct.index.min().strftime('%d %b \'%y')
-            end_date = equity_pct.index.max().strftime('%d %b \'%y')
+            start_date = equity_series.index.min().strftime('%d %b \'%y')
+            end_date = equity_series.index.max().strftime('%d %b \'%y')
 
             fig.update_layout(
                 title={
