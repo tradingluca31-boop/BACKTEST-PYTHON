@@ -665,7 +665,7 @@ class BacktestAnalyzerPro:
         # 2. Outlier Win Ratio : rapport des gains extrêmes
         if len(gains) > 0:
             extreme_gains = gains[gains > (mean_return + outlier_threshold)]
-            if len(gains) > 0:
+            if len(extreme_gains) > 0:
                 outlier_win_ratio = len(extreme_gains) / len(gains)
             else:
                 outlier_win_ratio = 0.0
@@ -675,7 +675,7 @@ class BacktestAnalyzerPro:
         # 3. Outlier Loss Ratio : rapport des pertes extrêmes
         if len(losses) > 0:
             extreme_losses = losses[losses < (mean_return - outlier_threshold)]
-            if len(losses) > 0:
+            if len(extreme_losses) > 0:
                 outlier_loss_ratio = len(extreme_losses) / len(losses)
             else:
                 outlier_loss_ratio = 0.0
