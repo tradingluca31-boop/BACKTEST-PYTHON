@@ -951,34 +951,75 @@ class BacktestAnalyzerPro:
                     return go.Figure()
                 self.equity_curve = (1 + self.returns).cumprod()
 
-            # Méthode plus robuste basée sur l'equity curve avec calcul mensuel correct
+            # Calcul basé sur les dates de fermeture réelles des trades
             monthly_returns_data = []
 
-            # Utiliser l'equity curve mais avec un calcul différent
-            equity_series = self.equity_curve.copy()
+            # Si nous avons les données de trades, utiliser les vraies dates de fermeture
+            if self.trades_data is not None:
+                trades_df = self.trades_data.copy()
 
-            # Grouper par mois et calculer les rendements
-            for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
-                for month in range(1, 13):
-                    # Obtenir les données pour ce mois spécifique
-                    month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
-                    month_data = equity_series[month_mask]
+                # S'assurer que nous avons la colonne time_close_dt
+                if 'time_close_dt' not in trades_df.columns:
+                    trades_df['time_close_dt'] = pd.to_datetime(trades_df['time_close'], unit='s', errors='coerce')
 
-                    if len(month_data) > 0:
-                        # Prendre la première et dernière valeur du mois
-                        start_value = month_data.iloc[0]
-                        end_value = month_data.iloc[-1]
+                # Trier par date de fermeture
+                trades_df = trades_df.sort_values('time_close_dt')
 
-                        # Calculer le rendement mensuel
-                        if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
-                            monthly_return = ((end_value - start_value) / start_value) * 100
+                # Calculer l'equity cumulative basée sur les profits réels
+                trades_df['cumulative_profit'] = trades_df['profit'].cumsum()
+                initial_capital = 10000
+                trades_df['equity'] = initial_capital + trades_df['cumulative_profit']
 
-                            # Prendre tous les rendements, même ceux proches de 0
+                # Extraire année et mois de fermeture
+                trades_df['close_year'] = trades_df['time_close_dt'].dt.year
+                trades_df['close_month'] = trades_df['time_close_dt'].dt.month
+
+                # Calculer les rendements mensuels
+                years = sorted(trades_df['close_year'].unique())
+
+                for year in years:
+                    for month in range(1, 13):
+                        # Trades fermés dans ce mois
+                        month_trades = trades_df[(trades_df['close_year'] == year) & (trades_df['close_month'] == month)]
+
+                        if len(month_trades) > 0:
+                            # Equity au début du mois (fin du mois précédent)
+                            prev_trades = trades_df[trades_df['time_close_dt'] < month_trades.iloc[0]['time_close_dt']]
+                            start_equity = prev_trades['equity'].iloc[-1] if len(prev_trades) > 0 else initial_capital
+
+                            # Equity à la fin du mois
+                            end_equity = month_trades['equity'].iloc[-1]
+
+                            # Calculer le rendement mensuel
+                            monthly_return = ((end_equity - start_equity) / start_equity) * 100
+
                             monthly_returns_data.append({
                                 'year': year,
                                 'month': month,
                                 'return': monthly_return
                             })
+
+            else:
+                # Fallback: utiliser l'equity curve si pas de données trades
+                equity_series = self.equity_curve.copy()
+
+                for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
+                    for month in range(1, 13):
+                        month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
+                        month_data = equity_series[month_mask]
+
+                        if len(month_data) > 0:
+                            start_value = month_data.iloc[0]
+                            end_value = month_data.iloc[-1]
+
+                            if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
+                                monthly_return = ((end_value - start_value) / start_value) * 100
+
+                                monthly_returns_data.append({
+                                    'year': year,
+                                    'month': month,
+                                    'return': monthly_return
+                                })
 
             if len(monthly_returns_data) == 0:
                 st.warning("Pas assez de données pour créer la heatmap mensuelle")
@@ -1836,30 +1877,73 @@ class BacktestAnalyzerPro:
 
             # Utiliser la même logique que dans create_monthly_heatmap
             monthly_returns_data = []
-            equity_series = self.equity_curve.copy()
 
-            # Grouper par mois et calculer les rendements
-            for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
-                for month in range(1, 13):
-                    # Obtenir les données pour ce mois spécifique
-                    month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
-                    month_data = equity_series[month_mask]
+            # Si nous avons les données de trades, utiliser les vraies dates de fermeture
+            if self.trades_data is not None:
+                trades_df = self.trades_data.copy()
 
-                    if len(month_data) > 0:
-                        # Prendre la première et dernière valeur du mois
-                        start_value = month_data.iloc[0]
-                        end_value = month_data.iloc[-1]
+                # S'assurer que nous avons la colonne time_close_dt
+                if 'time_close_dt' not in trades_df.columns:
+                    trades_df['time_close_dt'] = pd.to_datetime(trades_df['time_close'], unit='s', errors='coerce')
 
-                        # Calculer le rendement mensuel
-                        if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
-                            monthly_return = ((end_value - start_value) / start_value) * 100
+                # Trier par date de fermeture
+                trades_df = trades_df.sort_values('time_close_dt')
 
-                            # Prendre tous les rendements
+                # Calculer l'equity cumulative basée sur les profits réels
+                trades_df['cumulative_profit'] = trades_df['profit'].cumsum()
+                initial_capital = 10000
+                trades_df['equity'] = initial_capital + trades_df['cumulative_profit']
+
+                # Extraire année et mois de fermeture
+                trades_df['close_year'] = trades_df['time_close_dt'].dt.year
+                trades_df['close_month'] = trades_df['time_close_dt'].dt.month
+
+                # Calculer les rendements mensuels
+                years = sorted(trades_df['close_year'].unique())
+
+                for year in years:
+                    for month in range(1, 13):
+                        # Trades fermés dans ce mois
+                        month_trades = trades_df[(trades_df['close_year'] == year) & (trades_df['close_month'] == month)]
+
+                        if len(month_trades) > 0:
+                            # Equity au début du mois (fin du mois précédent)
+                            prev_trades = trades_df[trades_df['time_close_dt'] < month_trades.iloc[0]['time_close_dt']]
+                            start_equity = prev_trades['equity'].iloc[-1] if len(prev_trades) > 0 else initial_capital
+
+                            # Equity à la fin du mois
+                            end_equity = month_trades['equity'].iloc[-1]
+
+                            # Calculer le rendement mensuel
+                            monthly_return = ((end_equity - start_equity) / start_equity) * 100
+
                             monthly_returns_data.append({
                                 'year': year,
                                 'month': month,
                                 'return': monthly_return
                             })
+
+            else:
+                # Fallback: utiliser l'equity curve si pas de données trades
+                equity_series = self.equity_curve.copy()
+
+                for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
+                    for month in range(1, 13):
+                        month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
+                        month_data = equity_series[month_mask]
+
+                        if len(month_data) > 0:
+                            start_value = month_data.iloc[0]
+                            end_value = month_data.iloc[-1]
+
+                            if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
+                                monthly_return = ((end_value - start_value) / start_value) * 100
+
+                                monthly_returns_data.append({
+                                    'year': year,
+                                    'month': month,
+                                    'return': monthly_return
+                                })
 
             if len(monthly_returns_data) == 0:
                 return None, None
