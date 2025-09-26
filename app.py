@@ -1916,7 +1916,7 @@ class BacktestAnalyzerPro:
                     tickfont=dict(color='white'),
                     gridcolor='rgba(255,255,255,0.2)'
                 ),
-                height=400,
+                height=600,
                 showlegend=False,
                 margin=dict(l=60, r=60, t=80, b=50)
             )
