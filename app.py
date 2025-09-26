@@ -1973,19 +1973,27 @@ class BacktestAnalyzerPro:
 
                 equity_series = pd.Series(trades_df_sorted['equity'].values, index=trades_df_sorted['close_date'])
 
-                # Calculer les rendements mensuels basés sur l'equity réelle
-                for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
-                    for month in range(1, 13):
-                        month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
-                        month_data = equity_series[month_mask]
+                # Calculer les rendements mensuels SEULEMENT pour les mois avec des trades
+                # Grouper les trades par mois et calculer le changement d'equity
+                trades_df_sorted['year_month'] = trades_df_sorted['close_date'].dt.to_period('M')
 
-                        if len(month_data) > 0:
-                            start_value = month_data.iloc[0]
-                            end_value = month_data.iloc[-1]
+                # Pour chaque mois avec des trades, calculer le rendement
+                prev_equity = initial_capital
 
-                            if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
-                                monthly_return = ((end_value - start_value) / start_value) * 100
-                                monthly_returns.append(monthly_return)
+                for month_period in trades_df_sorted['year_month'].unique():
+                    month_trades = trades_df_sorted[trades_df_sorted['year_month'] == month_period]
+
+                    if len(month_trades) > 0:
+                        # Equity au début du mois = equity de fin du mois précédent
+                        start_equity = prev_equity
+                        # Equity à la fin du mois = après tous les trades du mois
+                        end_equity = month_trades['equity'].iloc[-1]
+
+                        # Calculer le rendement mensuel
+                        if start_equity > 0:
+                            monthly_return = ((end_equity - start_equity) / start_equity) * 100
+                            monthly_returns.append(monthly_return)
+                            prev_equity = end_equity
 
             else:
                 # Fallback vers equity curve basique
