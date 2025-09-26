@@ -1007,35 +1007,30 @@ class BacktestAnalyzerPro:
                     # Capital initial
                     initial_capital = 10000
 
-                    # Créer une série temporelle d'equity curve
-                    equity_series = pd.Series(index=trades_df_sorted['close_date'],
-                                            data=initial_capital + trades_df_sorted['cumulative_profit'].values)
+                    # Calculer equity cumulative pour chaque trade (comme dans l'analyse CSV)
+                    trades_df_sorted['equity'] = initial_capital + trades_df_sorted['cumulative_profit']
 
-                    # Ajouter le point de départ
-                    equity_series = pd.concat([
-                        pd.Series([initial_capital], index=[trades_df_sorted['close_date'].iloc[0] - pd.Timedelta(days=1)]),
-                        equity_series
-                    ]).sort_index()
+                    print(f"DEBUG - Equity calculé pour {len(trades_df_sorted)} trades")
 
-                    print(f"DEBUG - Equity curve créé avec {len(equity_series)} points")
+                    # Pour chaque mois avec des trades, calculer le rendement réel
+                    for (year, month), month_trades in trades_df_sorted.groupby([trades_df_sorted['close_date'].dt.year, trades_df_sorted['close_date'].dt.month]):
+                        # Premier et dernier trade du mois
+                        first_trade = month_trades.iloc[0]
+                        last_trade = month_trades.iloc[-1]
 
-                    # Calculer les rendements mensuels de manière correcte
-                    # Méthode 1: Resample sur les fins de mois et calculer les rendements
-                    monthly_equity = equity_series.resample('ME').last()
+                        # Equity au début du mois (avant le premier trade)
+                        start_equity = first_trade['equity'] - first_trade['profit']
+                        end_equity = last_trade['equity']
 
-                    for i in range(1, len(monthly_equity)):
-                        start_equity = monthly_equity.iloc[i-1]
-                        end_equity = monthly_equity.iloc[i]
-
-                        if start_equity > 0 and pd.notna(start_equity) and pd.notna(end_equity):
+                        if start_equity > 0:
                             monthly_return = ((end_equity - start_equity) / start_equity) * 100
-
-                            month_date = monthly_equity.index[i]
                             monthly_returns_data.append({
-                                'year': int(month_date.year),
-                                'month': int(month_date.month),
+                                'year': int(year),
+                                'month': int(month),
                                 'return': monthly_return
                             })
+
+                            print(f"DEBUG - {year}-{month:02d}: {len(month_trades)} trades, start: {start_equity:.2f}, end: {end_equity:.2f}, return: {monthly_return:.2f}%")
 
                     print(f"DEBUG - {len(monthly_returns_data)} mois de données calculés")
 
@@ -1659,17 +1654,56 @@ class BacktestAnalyzerPro:
                     return go.Figure()
                 self.equity_curve = (1 + self.returns).cumprod()
 
-            # Calculer les rendements annuels
+            # Calculer les rendements annuels avec la méthode correcte des trades
             yearly_returns = []
-            years = sorted(set(self.equity_curve.index.year))
 
-            for year in years:
-                year_data = self.equity_curve[self.equity_curve.index.year == year]
-                if len(year_data) > 1:
-                    start_value = year_data.iloc[0]
-                    end_value = year_data.iloc[-1]
-                    yearly_return = (end_value - start_value) / start_value
-                    yearly_returns.append({'year': year, 'return': yearly_return * 100})
+            # Utiliser les données de trades si disponibles
+            source_data = None
+            if hasattr(self, 'original_trades_data') and self.original_trades_data is not None:
+                source_data = self.original_trades_data
+            elif hasattr(self, 'trades_data') and self.trades_data is not None:
+                source_data = self.trades_data
+
+            if source_data is not None:
+                try:
+                    # Préparer les données comme dans la heatmap
+                    trades_df = source_data.copy()
+                    close_col = 'time_close'
+                    if 'time_close' not in trades_df.columns:
+                        # Fallback vers equity curve
+                        raise ValueError("Pas de colonne time_close")
+
+                    trades_df['close_date'] = pd.to_datetime(trades_df[close_col], unit='s')
+                    trades_df_sorted = trades_df.sort_values('close_date')
+                    trades_df_sorted['cumulative_profit'] = trades_df_sorted['profit'].cumsum()
+
+                    initial_capital = 10000
+                    trades_df_sorted['equity'] = initial_capital + trades_df_sorted['cumulative_profit']
+
+                    # Calculer pour chaque année
+                    for year, year_data in trades_df_sorted.groupby(trades_df_sorted['close_date'].dt.year):
+                        first_trade = year_data.iloc[0]
+                        last_trade = year_data.iloc[-1]
+
+                        start_equity = first_trade['equity'] - first_trade['profit']
+                        end_equity = last_trade['equity']
+
+                        yearly_return = ((end_equity - start_equity) / start_equity) * 100
+                        yearly_returns.append({'year': year, 'return': yearly_return})
+                except:
+                    # Fallback vers equity curve
+                    pass
+
+            # Fallback si pas de trades data
+            if len(yearly_returns) == 0:
+                years = sorted(set(self.equity_curve.index.year))
+                for year in years:
+                    year_data = self.equity_curve[self.equity_curve.index.year == year]
+                    if len(year_data) > 1:
+                        start_value = year_data.iloc[0]
+                        end_value = year_data.iloc[-1]
+                        yearly_return = (end_value - start_value) / start_value
+                        yearly_returns.append({'year': year, 'return': yearly_return * 100})
 
             if len(yearly_returns) == 0:
                 return go.Figure()
