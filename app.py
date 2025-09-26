@@ -56,6 +56,59 @@ class BacktestAnalyzerPro:
         self.benchmark = None
         self.custom_metrics = {}
 
+    def get_real_yearly_returns(self):
+        """
+        Calcule les vrais rendements annuels basés sur les trades MT5 ou equity curve
+        Retourne un dictionnaire avec les rendements par année
+        """
+        yearly_returns = {}
+
+        # Utiliser les données de trades si disponibles (méthode précise)
+        source_data = None
+        if hasattr(self, 'original_trades_data') and self.original_trades_data is not None:
+            source_data = self.original_trades_data
+        elif hasattr(self, 'trades_data') and self.trades_data is not None:
+            source_data = self.trades_data
+
+        if source_data is not None:
+            try:
+                trades_df = source_data.copy()
+                if 'time_close' in trades_df.columns:
+                    trades_df['close_date'] = pd.to_datetime(trades_df['time_close'], unit='s')
+                    trades_df_sorted = trades_df.sort_values('close_date')
+                    trades_df_sorted['cumulative_profit'] = trades_df_sorted['profit'].cumsum()
+
+                    initial_capital = 10000
+                    trades_df_sorted['equity'] = initial_capital + trades_df_sorted['cumulative_profit']
+
+                    # Calculer pour chaque année
+                    for year, year_data in trades_df_sorted.groupby(trades_df_sorted['close_date'].dt.year):
+                        first_trade = year_data.iloc[0]
+                        last_trade = year_data.iloc[-1]
+
+                        start_equity = first_trade['equity'] - first_trade['profit']
+                        end_equity = last_trade['equity']
+
+                        yearly_return = ((end_equity - start_equity) / start_equity)
+                        yearly_returns[year] = yearly_return
+
+                    return yearly_returns
+            except Exception as e:
+                pass
+
+        # Fallback vers equity curve si pas de trades data
+        if self.equity_curve is not None and len(self.equity_curve) > 0:
+            years = sorted(set(self.equity_curve.index.year))
+            for year in years:
+                year_data = self.equity_curve[self.equity_curve.index.year == year]
+                if len(year_data) > 1:
+                    start_value = year_data.iloc[0]
+                    end_value = year_data.iloc[-1]
+                    yearly_return = (end_value - start_value) / start_value
+                    yearly_returns[year] = yearly_return
+
+        return yearly_returns
+
     def load_data(self, data_source, data_type='returns', file_extension=None):
         """
         Charger les données de backtest
@@ -1654,56 +1707,13 @@ class BacktestAnalyzerPro:
                     return go.Figure()
                 self.equity_curve = (1 + self.returns).cumprod()
 
-            # Calculer les rendements annuels avec la méthode correcte des trades
+            # Utiliser la méthode unifiée pour les rendements annuels
             yearly_returns = []
+            yearly_returns_dict = self.get_real_yearly_returns()
 
-            # Utiliser les données de trades si disponibles
-            source_data = None
-            if hasattr(self, 'original_trades_data') and self.original_trades_data is not None:
-                source_data = self.original_trades_data
-            elif hasattr(self, 'trades_data') and self.trades_data is not None:
-                source_data = self.trades_data
-
-            if source_data is not None:
-                try:
-                    # Préparer les données comme dans la heatmap
-                    trades_df = source_data.copy()
-                    close_col = 'time_close'
-                    if 'time_close' not in trades_df.columns:
-                        # Fallback vers equity curve
-                        raise ValueError("Pas de colonne time_close")
-
-                    trades_df['close_date'] = pd.to_datetime(trades_df[close_col], unit='s')
-                    trades_df_sorted = trades_df.sort_values('close_date')
-                    trades_df_sorted['cumulative_profit'] = trades_df_sorted['profit'].cumsum()
-
-                    initial_capital = 10000
-                    trades_df_sorted['equity'] = initial_capital + trades_df_sorted['cumulative_profit']
-
-                    # Calculer pour chaque année
-                    for year, year_data in trades_df_sorted.groupby(trades_df_sorted['close_date'].dt.year):
-                        first_trade = year_data.iloc[0]
-                        last_trade = year_data.iloc[-1]
-
-                        start_equity = first_trade['equity'] - first_trade['profit']
-                        end_equity = last_trade['equity']
-
-                        yearly_return = ((end_equity - start_equity) / start_equity) * 100
-                        yearly_returns.append({'year': year, 'return': yearly_return})
-                except:
-                    # Fallback vers equity curve
-                    pass
-
-            # Fallback si pas de trades data
-            if len(yearly_returns) == 0:
-                years = sorted(set(self.equity_curve.index.year))
-                for year in years:
-                    year_data = self.equity_curve[self.equity_curve.index.year == year]
-                    if len(year_data) > 1:
-                        start_value = year_data.iloc[0]
-                        end_value = year_data.iloc[-1]
-                        yearly_return = (end_value - start_value) / start_value
-                        yearly_returns.append({'year': year, 'return': yearly_return * 100})
+            if yearly_returns_dict:
+                for year, return_val in yearly_returns_dict.items():
+                    yearly_returns.append({'year': year, 'return': return_val * 100})
 
             if len(yearly_returns) == 0:
                 return go.Figure()
@@ -2862,28 +2872,20 @@ def main():
                         st.markdown("### 📆 Performance Annuelle")
                         col1, col2, col3 = st.columns(3)
 
-                        # Calculs annuels RÉELS
+                        # Calculs annuels RÉELS avec la vraie méthode
                         try:
-                            if analyzer.returns is not None and len(analyzer.returns) > 0:
-                                yearly_returns_calc = analyzer.returns.resample('A').apply(lambda x: (1 + x).prod() - 1)
+                            yearly_returns_dict = analyzer.get_real_yearly_returns()
 
-                                if len(yearly_returns_calc) > 0:
-                                    best_year_val = yearly_returns_calc.max()
-                                    worst_year_val = yearly_returns_calc.min()
-                                    avg_year_val = yearly_returns_calc.mean()
-                                    positive_years = len([x for x in yearly_returns_calc if x > 0])
-                                    negative_years = len([x for x in yearly_returns_calc if x < 0])
-                                    total_years = len(yearly_returns_calc)
-                                else:
-                                    # Si pas assez pour années, utiliser returns totaux comme année unique
-                                    total_return = (1 + analyzer.returns).prod() - 1
-                                    best_year_val = total_return
-                                    worst_year_val = total_return
-                                    avg_year_val = total_return
-                                    positive_years = 1 if total_return > 0 else 0
-                                    negative_years = 1 if total_return < 0 else 0
-                                    total_years = 1
+                            if yearly_returns_dict:
+                                yearly_values = list(yearly_returns_dict.values())
+                                best_year_val = max(yearly_values)
+                                worst_year_val = min(yearly_values)
+                                avg_year_val = sum(yearly_values) / len(yearly_values)
+                                positive_years = len([x for x in yearly_values if x > 0])
+                                negative_years = len([x for x in yearly_values if x < 0])
+                                total_years = len(yearly_values)
                             else:
+                                # Fallback si aucun calcul possible
                                 best_year_val = worst_year_val = avg_year_val = 0
                                 positive_years = negative_years = total_years = 0
                         except Exception as e:
