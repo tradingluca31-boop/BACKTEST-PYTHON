@@ -1798,22 +1798,27 @@ class BacktestAnalyzerPro:
                 hwm = equity_series.expanding().max()
                 drawdowns = (equity_series - hwm) / hwm * 100
 
-            # Identifier TOUTES les périodes de drawdown
+            # Identifier TOUTES les périodes de drawdown - méthode plus complète
             drawdown_periods = []
             in_drawdown = False
             start_idx = None
             start_date = None
             peak_equity = None
 
+            print(f"DEBUG: Analysing {len(equity_series)} points d'equity")
+            print(f"DEBUG: Premiers drawdowns: {drawdowns.head()}")
+            print(f"DEBUG: Range des drawdowns: {drawdowns.max():.3f}% à {drawdowns.min():.3f}%")
+
             for i, (date, eq) in enumerate(equity_series.items()):
                 current_dd = drawdowns.iloc[i]
                 current_hwm = hwm.iloc[i]
 
-                if current_dd < -0.1 and not in_drawdown:  # Début drawdown (seuil 0.1%)
+                if current_dd < -0.1 and not in_drawdown:  # Début drawdown
                     in_drawdown = True
                     start_idx = i
                     start_date = date
                     peak_equity = current_hwm
+                    print(f"DEBUG DEBUT DD: {date.strftime('%Y-%m-%d')} | DD: {current_dd:.2f}% | Peak: {peak_equity:.2f}")
 
                 elif current_dd >= 0 and in_drawdown:  # Fin drawdown (retour à l'équilibre)
                     in_drawdown = False
@@ -1829,6 +1834,7 @@ class BacktestAnalyzerPro:
                         'end_idx': end_idx,
                         'peak_equity': peak_equity
                     })
+                    print(f"DEBUG FIN DD: {end_date.strftime('%Y-%m-%d')} | Max DD: {max_dd:.2f}%")
 
             # Si on finit en drawdown, l'ajouter
             if in_drawdown:
@@ -1843,6 +1849,9 @@ class BacktestAnalyzerPro:
                     'end_idx': end_idx,
                     'peak_equity': peak_equity
                 })
+                print(f"DEBUG DD EN COURS: {end_date.strftime('%Y-%m-%d')} | Max DD: {max_dd:.2f}%")
+
+            print(f"DEBUG: Total {len(drawdown_periods)} périodes de drawdown détectées")
 
             # Prendre les 5 pires pour affichage dans le titre
             worst_5 = sorted(drawdown_periods, key=lambda x: x['max_drawdown'])[:5]
@@ -1871,7 +1880,7 @@ class BacktestAnalyzerPro:
                           'rgba(0,255,150,0.15)', 'rgba(0,200,255,0.15)', 'rgba(100,100,255,0.15)',
                           'rgba(200,0,255,0.15)']
 
-            # Ajouter TOUTES les zones de drawdown avec légende pour les 5 pires
+            # Ajouter TOUTES les zones de drawdown avec largeur minimum pour visibilité
             for i, dd in enumerate(drawdown_periods):
                 color = base_colors[i % len(base_colors)]  # Rotation des couleurs
 
@@ -1881,14 +1890,28 @@ class BacktestAnalyzerPro:
 
                 if is_top_5:
                     # Zone plus visible pour le top 5
-                    color = base_colors[rank-1].replace('0.15', '0.25')  # Plus opaque
+                    color = base_colors[rank-1].replace('0.15', '0.30')  # Plus opaque
+
+                # Calculer largeur minimum (30 jours) pour les zones très courtes
+                duration = (dd['end'] - dd['start']).days
+                if duration < 30:  # Si moins de 30 jours, étendre la zone
+                    extend_days = (30 - duration) // 2
+                    start_extended = dd['start'] - pd.Timedelta(days=extend_days)
+                    end_extended = dd['end'] + pd.Timedelta(days=extend_days)
+
+                    # S'assurer de ne pas sortir des limites de la série
+                    start_extended = max(start_extended, equity_series.index.min())
+                    end_extended = min(end_extended, equity_series.index.max())
+                else:
+                    start_extended = dd['start']
+                    end_extended = dd['end']
 
                 fig.add_vrect(
-                    x0=dd['start'], x1=dd['end'],
+                    x0=start_extended, x1=end_extended,
                     fillcolor=color,
-                    opacity=0.4 if is_top_5 else 0.2,
-                    line_width=1 if is_top_5 else 0,
-                    line_color='red' if is_top_5 else None
+                    opacity=0.5 if is_top_5 else 0.3,  # Plus opaque pour meilleure visibilité
+                    line_width=2 if is_top_5 else 1,   # Bordures plus épaisses
+                    line_color='red' if is_top_5 else color.replace('0.15', '1.0').replace('rgba', 'rgb').replace(',0.3)', ')')
                 )
 
             # Dates de début et fin
