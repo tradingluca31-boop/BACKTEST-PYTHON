@@ -86,7 +86,13 @@ class BacktestAnalyzerPro:
                         first_trade = year_data.iloc[0]
                         last_trade = year_data.iloc[-1]
 
-                        start_equity = first_trade['equity'] - first_trade['profit']
+                        # Correction: calculer l'equity au début de l'année
+                        if year == trades_df_sorted['close_date'].dt.year.min():
+                            start_equity = initial_capital
+                        else:
+                            prev_year_data = trades_df_sorted[trades_df_sorted['close_date'].dt.year < year]
+                            start_equity = prev_year_data['equity'].iloc[-1] if len(prev_year_data) > 0 else initial_capital
+
                         end_equity = last_trade['equity']
 
                         yearly_return = ((end_equity - start_equity) / start_equity)
@@ -1071,8 +1077,14 @@ class BacktestAnalyzerPro:
                         first_trade = month_trades.iloc[0]
                         last_trade = month_trades.iloc[-1]
 
-                        # Equity au début du mois (avant le premier trade)
-                        start_equity = first_trade['equity'] - first_trade['profit']
+                        # Correction: calculer l'equity au début du mois
+                        # Trouver l'equity à la fin du mois précédent
+                        prev_month_mask = (trades_df_sorted['close_date'] < pd.Timestamp(year, month, 1))
+                        if prev_month_mask.any():
+                            start_equity = trades_df_sorted[prev_month_mask]['equity'].iloc[-1]
+                        else:
+                            start_equity = initial_capital
+
                         end_equity = last_trade['equity']
 
                         if start_equity > 0:
@@ -2261,11 +2273,30 @@ def main():
         )
 
         # Tutoriel interactif pour les types de données
-        with st.expander("🎓 TUTORIEL - Comment choisir le type de données ?", expanded=False):
-            st.markdown("### 🔍 Guide de sélection du type de données")
+        with st.expander("🎓 TUTORIEL COMPLET - Guide d'utilisation de l'analyseur de backtest", expanded=False):
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        padding: 20px; border-radius: 15px; margin: 10px 0;'>
+                <h2 style='color: white; text-align: center; margin: 0;'>
+                    📊 Guide Complet d'Analyse de Backtest
+                </h2>
+                <p style='color: #e2e8f0; text-align: center; margin: 10px 0;'>
+                    Maîtrisez l'art de l'analyse quantitative de vos stratégies de trading
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
-            # Tabs pour chaque type
-            tab1, tab2, tab3 = st.tabs(["📈 Returns", "💼 Equity", "🎯 Trades"])
+            # Nouveau guide avec plus de contenu
+            guide_tab1, guide_tab2, guide_tab3, guide_tab4, guide_tab5 = st.tabs([
+                "📋 Types de Données", "⚙️ Configuration", "📈 Métriques Clés",
+                "🎯 Interprétation", "💡 Conseils Pro"
+            ])
+
+            with guide_tab1:
+                st.markdown("### 🔍 Guide de sélection du type de données")
+
+                # Tabs pour chaque type
+                tab1, tab2, tab3 = st.tabs(["📈 Returns", "💼 Equity", "🎯 Trades"])
 
             with tab1:
                 st.markdown("""
@@ -2402,6 +2433,587 @@ def main():
                 **❓ Pas sûr ?**
                 → L'app fait de l'auto-détection en bas !
                 """)
+
+            with guide_tab2:
+                st.markdown("### ⚙️ Configuration et Paramètres")
+
+                config_col1, config_col2 = st.columns(2)
+
+                with config_col1:
+                    st.markdown("""
+                    <div style='background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                                padding: 15px; border-radius: 10px; margin: 10px 0;'>
+                        <h4 style='color: white; margin: 0;'>🎯 Capital Initial</h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown("""
+                    **Importance :** Définit le point de départ pour tous vos calculs
+
+                    **Valeurs recommandées :**
+                    - **Débutant :** 1 000 - 5 000 €
+                    - **Intermédiaire :** 10 000 - 50 000 €
+                    - **Avancé :** 100 000 € et plus
+
+                    **💡 Conseil :** Utilisez le capital que vous comptez réellement investir
+                    """)
+
+                    st.markdown("""
+                    <div style='background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+                                padding: 15px; border-radius: 10px; margin: 10px 0;'>
+                        <h4 style='color: white; margin: 0;'>📊 Drawdown Target</h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown("""
+                    **Définition :** Perte maximale acceptable depuis le plus haut
+
+                    **Seuils recommandés :**
+                    - **Conservateur :** 5-10%
+                    - **Modéré :** 15-20%
+                    - **Agressif :** 25-30%
+
+                    **⚠️ Attention :** Plus de 30% = Risque très élevé !
+                    """)
+
+                with config_col2:
+                    st.markdown("""
+                    <div style='background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+                                padding: 15px; border-radius: 10px; margin: 10px 0;'>
+                        <h4 style='color: white; margin: 0;'>💰 Profit Targets</h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown("""
+                    **Objectifs réalistes annuels :**
+                    - **Débutant :** 8-15%
+                    - **Intermédiaire :** 15-25%
+                    - **Expert :** 25-40%
+
+                    **📈 Formule de croissance composée :**
+                    ```
+                    Capital Final = Capital × (1 + Rendement)^Années
+                    ```
+                    """)
+
+                    st.markdown("""
+                    <div style='background: linear-gradient(135deg, #7c2d92 0%, #c026d3 100%);
+                                padding: 15px; border-radius: 10px; margin: 10px 0;'>
+                        <h4 style='color: white; margin: 0;'>🔧 Options Avancées</h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown("""
+                    **Métriques avancées :** Activez pour voir :
+                    - Ratios de Sharpe, Sortino, Calmar
+                    - Analyse des outliers
+                    - Corrélations temporelles
+
+                    **Tous les graphiques :** Affichage complet
+                    - Heatmap mensuelle
+                    - Drawdowns détaillés
+                    - Distributions statistiques
+                    """)
+
+                st.markdown("---")
+                st.markdown("#### 🚀 Paramètres Experts")
+
+                expert_col1, expert_col2, expert_col3 = st.columns(3)
+
+                with expert_col1:
+                    st.markdown("""
+                    **📊 Période d'analyse**
+                    - Minimum : 6 mois de données
+                    - Optimal : 2-3 années
+                    - Attention aux sur-optimisations !
+                    """)
+
+                with expert_col2:
+                    st.markdown("""
+                    **⏰ Fréquence des données**
+                    - Quotidien : Plus stable
+                    - Intraday : Plus de volatilité
+                    - Mensuel : Vue macro
+                    """)
+
+                with expert_col3:
+                    st.markdown("""
+                    **🎯 Benchmarking**
+                    - S&P 500 : ~8-10% annuel
+                    - CAC 40 : ~6-8% annuel
+                    - Bonds : ~2-4% annuel
+                    """)
+
+            with guide_tab3:
+                st.markdown("### 📈 Métriques Clés et Interprétation")
+
+                # Section Rendements
+                st.markdown("""
+                <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+                            padding: 20px; border-radius: 10px; margin: 15px 0;'>
+                    <h3 style='color: white; text-align: center; margin: 0;'>
+                        💰 MÉTRIQUES DE RENDEMENT
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                metrics_col1, metrics_col2 = st.columns(2)
+
+                with metrics_col1:
+                    st.markdown("""
+                    #### 📊 **Rendement Total**
+                    - **Formule :** (Valeur Finale - Valeur Initiale) / Valeur Initiale
+                    - **Exemple :** 10 000€ → 13 000€ = 30% de rendement total
+                    - **💡 Bon :** > 15% sur 2 ans
+                    - **⚠️ Attention :** Ne considère pas le temps
+
+                    #### 📈 **Rendement Annualisé**
+                    - **Formule :** (1 + Rendement Total)^(1/Années) - 1
+                    - **Exemple :** 30% sur 2 ans = 14.02% annualisé
+                    - **💡 Excellent :** > 20% par an
+                    - **✅ Bon :** 10-20% par an
+                    - **⚠️ Moyen :** 5-10% par an
+                    """)
+
+                with metrics_col2:
+                    st.markdown("""
+                    #### 📅 **Rendements Mensuels**
+                    - **Moyenne :** Rendement moyen par mois
+                    - **Médiane :** Rendement du mois "central"
+                    - **Meilleur mois :** Plus forte performance
+                    - **Pire mois :** Plus grosse perte
+                    - **💡 Conseil :** Médiane plus fiable que moyenne
+
+                    #### 🎯 **Win Rate**
+                    - **Définition :** % de mois/trades gagnants
+                    - **Formule :** Trades gagnants / Total trades × 100
+                    - **✅ Excellent :** > 70%
+                    - **💡 Bon :** 50-70%
+                    - **⚠️ Attention :** < 50% (mais possible avec gros R/R)
+                    """)
+
+                # Section Risques
+                st.markdown("""
+                <div style='background: linear-gradient(135deg, #dc2626 0%, #f59e0b 100%);
+                            padding: 20px; border-radius: 10px; margin: 15px 0;'>
+                    <h3 style='color: white; text-align: center; margin: 0;'>
+                        ⚠️ MÉTRIQUES DE RISQUE
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                risk_col1, risk_col2 = st.columns(2)
+
+                with risk_col1:
+                    st.markdown("""
+                    #### 📉 **Drawdown Maximum**
+                    - **Définition :** Plus grosse chute depuis un sommet
+                    - **Formule :** (Plus bas - Plus haut) / Plus haut × 100
+                    - **✅ Excellent :** < 10%
+                    - **💡 Acceptable :** 10-20%
+                    - **⚠️ Risqué :** 20-30%
+                    - **🚫 Dangereux :** > 30%
+
+                    #### 📊 **Volatilité**
+                    - **Définition :** Écart-type des rendements mensuels
+                    - **Annualisée :** Volatilité mensuelle × √12
+                    - **✅ Faible :** < 15%
+                    - **💡 Modérée :** 15-25%
+                    - **⚠️ Élevée :** > 25%
+                    """)
+
+                with risk_col2:
+                    st.markdown("""
+                    #### ⏱️ **Durée Moyenne des DD**
+                    - **Important :** Combien de temps pour récupérer ?
+                    - **✅ Bon :** < 3 mois
+                    - **💡 Acceptable :** 3-6 mois
+                    - **⚠️ Problématique :** > 6 mois
+
+                    #### 📈 **Value at Risk (VaR 95%)**
+                    - **Définition :** Perte maximale avec 95% de confiance
+                    - **Utilisation :** Gestion des positions
+                    - **Exemple :** VaR 5% = perte max 5% dans 95% des cas
+                    """)
+
+                # Section Ratios
+                st.markdown("""
+                <div style='background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+                            padding: 20px; border-radius: 10px; margin: 15px 0;'>
+                    <h3 style='color: white; text-align: center; margin: 0;'>
+                        🏆 RATIOS DE PERFORMANCE
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                ratio_col1, ratio_col2 = st.columns(2)
+
+                with ratio_col1:
+                    st.markdown("""
+                    #### ⚡ **Ratio de Sharpe**
+                    - **Formule :** (Rendement - Taux sans risque) / Volatilité
+                    - **Interprétation :** Rendement par unité de risque
+                    - **🏆 Excellent :** > 2.0
+                    - **✅ Très bon :** 1.5 - 2.0
+                    - **💡 Bon :** 1.0 - 1.5
+                    - **⚠️ Moyen :** 0.5 - 1.0
+                    - **🚫 Mauvais :** < 0.5
+
+                    #### 📉 **Ratio de Sortino**
+                    - **Amélioration du Sharpe :** Ne considère que la volatilité négative
+                    - **Plus précis :** Car les gains ne sont pas un "risque"
+                    - **Seuils similaires au Sharpe**
+                    """)
+
+                with ratio_col2:
+                    st.markdown("""
+                    #### 🎯 **Ratio de Calmar**
+                    - **Formule :** Rendement Annualisé / Drawdown Maximum
+                    - **Focus :** Performance vs pire scénario
+                    - **🏆 Excellent :** > 3.0
+                    - **✅ Très bon :** 2.0 - 3.0
+                    - **💡 Bon :** 1.0 - 2.0
+                    - **⚠️ Moyen :** 0.5 - 1.0
+
+                    #### 💪 **Profit Factor**
+                    - **Formule :** Gains Totaux / Pertes Totales
+                    - **🏆 Excellent :** > 2.0
+                    - **✅ Bon :** 1.5 - 2.0
+                    - **💡 Acceptable :** 1.2 - 1.5
+                    - **⚠️ Limite :** 1.0 - 1.2
+                    """)
+
+            with guide_tab4:
+                st.markdown("### 🎯 Interprétation et Analyse des Résultats")
+
+                # Section Analyse Globale
+                st.markdown("""
+                <div style='background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+                            padding: 20px; border-radius: 10px; margin: 15px 0;'>
+                    <h3 style='color: white; text-align: center; margin: 0;'>
+                        🔍 ANALYSE GLOBALE DE VOTRE STRATÉGIE
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                analysis_col1, analysis_col2 = st.columns(2)
+
+                with analysis_col1:
+                    st.markdown("""
+                    #### 🟢 **STRATÉGIE EXCELLENTE**
+                    **Caractéristiques :**
+                    - Rendement annualisé > 20%
+                    - Ratio Sharpe > 1.5
+                    - Drawdown max < 15%
+                    - Win rate > 60%
+                    - Volatilité < 20%
+
+                    **✅ Actions recommandées :**
+                    - Augmenter progressivement le capital
+                    - Surveiller la sur-optimisation
+                    - Tester sur données hors-échantillon
+                    - Diversifier les marchés si possible
+
+                    #### 🟡 **STRATÉGIE MOYENNE**
+                    **Caractéristiques :**
+                    - Rendement annualisé 8-15%
+                    - Ratio Sharpe 0.8-1.2
+                    - Drawdown max 15-25%
+                    - Win rate 45-60%
+
+                    **⚡ Actions recommandées :**
+                    - Optimiser la gestion des risques
+                    - Revoir les critères d'entrée/sortie
+                    - Analyser les périodes de sous-performance
+                    """)
+
+                with analysis_col2:
+                    st.markdown("""
+                    #### 🔴 **STRATÉGIE À REVOIR**
+                    **Caractéristiques :**
+                    - Rendement annualisé < 8%
+                    - Ratio Sharpe < 0.5
+                    - Drawdown max > 25%
+                    - Win rate < 45%
+                    - Volatilité > 30%
+
+                    **⚠️ Actions prioritaires :**
+                    - STOP ! Ne pas trader avec du vrai argent
+                    - Revoir complètement la logique
+                    - Tester sur plus de données
+                    - Considérer un changement de stratégie
+
+                    #### 📊 **ROBUSTESSE DU BACKTEST**
+                    **Vérifications essentielles :**
+                    - Période minimale : 2-3 ans
+                    - Nombre de trades > 100
+                    - Test sur différents marchés
+                    - Validation croisée temporelle
+                    """)
+
+                # Section Signaux d'Alerte
+                st.markdown("""
+                <div style='background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+                            padding: 20px; border-radius: 10px; margin: 15px 0;'>
+                    <h3 style='color: white; text-align: center; margin: 0;'>
+                        🚨 SIGNAUX D'ALERTE À SURVEILLER
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                alert_col1, alert_col2, alert_col3 = st.columns(3)
+
+                with alert_col1:
+                    st.markdown("""
+                    #### 🔴 **OVER-FITTING**
+                    **Signaux :**
+                    - Performance "trop" parfaite
+                    - Très peu de trades perdants
+                    - Courbe trop lisse
+                    - Win rate > 85%
+
+                    **Solutions :**
+                    - Tester sur données futures
+                    - Réduire la complexité
+                    - Validation croisée
+                    """)
+
+                with alert_col2:
+                    st.markdown("""
+                    #### 📉 **DÉRIVE TEMPORELLE**
+                    **Signaux :**
+                    - Performance dégradée récemment
+                    - Changement de volatilité
+                    - Drawdowns plus fréquents
+
+                    **Solutions :**
+                    - Analyser par périodes
+                    - Adapter aux conditions de marché
+                    - Revoir la logique
+                    """)
+
+                with alert_col3:
+                    st.markdown("""
+                    #### 🎲 **CHANCE VS COMPÉTENCE**
+                    **Tests statistiques :**
+                    - T-test de significativité
+                    - Bootstrap des résultats
+                    - Monte Carlo
+
+                    **💡 Règle :** Si p-value > 0.05,
+                    vos résultats peuvent être dus au hasard !
+                    """)
+
+                # Section Optimisation
+                st.markdown("""
+                <div style='background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+                            padding: 20px; border-radius: 10px; margin: 15px 0;'>
+                    <h3 style='color: white; text-align: center; margin: 0;'>
+                        🚀 PISTES D'OPTIMISATION
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                optimization_col1, optimization_col2 = st.columns(2)
+
+                with optimization_col1:
+                    st.markdown("""
+                    #### 💰 **AMÉLIORER LE RENDEMENT**
+                    - **Leverage intelligent :** Augmenter sur signaux forts
+                    - **Timing :** Éviter les périodes de forte volatilité
+                    - **Sélectivité :** Filtrer les signaux faibles
+                    - **Diversification :** Multi-actifs/multi-timeframes
+
+                    #### 📊 **OPTIMISER LES RATIOS**
+                    - **Ratio Sharpe :** Améliorer consistency
+                    - **Ratio Calmar :** Réduire le drawdown max
+                    - **Profit Factor :** Cut les pertes plus tôt
+                    """)
+
+                with optimization_col2:
+                    st.markdown("""
+                    #### 🛡️ **RÉDUIRE LE RISQUE**
+                    - **Stop-loss adaptatif :** Selon volatilité
+                    - **Position sizing :** Kelly criterion
+                    - **Corrélation :** Éviter les trades similaires
+                    - **Time-based exits :** Limiter l'exposition
+
+                    #### 🔧 **RÉGLAGES TECHNIQUES**
+                    - **Slippage :** Intégrer coûts réels
+                    - **Commission :** Impact sur petits comptes
+                    - **Latence :** Décalage d'exécution
+                    """)
+
+            with guide_tab5:
+                st.markdown("### 💡 Conseils Pro et Bonnes Pratiques")
+
+                # Section Trading Discipline
+                st.markdown("""
+                <div style='background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                            padding: 20px; border-radius: 10px; margin: 15px 0;'>
+                    <h3 style='color: white; text-align: center; margin: 0;'>
+                        🧠 DISCIPLINE ET PSYCHOLOGIE
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                discipline_col1, discipline_col2 = st.columns(2)
+
+                with discipline_col1:
+                    st.markdown("""
+                    #### 🎯 **RÈGLES D'OR**
+                    1. **Jamais de sur-optimisation**
+                       - Test sur données futures obligatoire
+                       - Walk-forward analysis
+                       - Validation croisée temporelle
+
+                    2. **Gestion stricte du capital**
+                       - Maximum 1-2% de risque par trade
+                       - Position sizing avec Kelly criterion
+                       - Diversification des actifs
+
+                    3. **Objectivité totale**
+                       - Respecter les signaux même contre intuition
+                       - Journaliser tous les trades
+                       - Analyser les échecs sans émotion
+                    """)
+
+                    st.markdown("""
+                    #### 📊 **MÉTRIQUES À SURVEILLER QUOTIDIENNEMENT**
+                    - **Drawdown courant** vs maximum historique
+                    - **Sharpe ratio** des 30 derniers trades
+                    - **Corrélation** avec indices de référence
+                    - **Volatilité** des dernières semaines
+                    """)
+
+                with discipline_col2:
+                    st.markdown("""
+                    #### ⚠️ **PIÈGES À ÉVITER ABSOLUMENT**
+
+                    **🔴 Over-trading**
+                    - Trop de trades = commission élevées
+                    - Qualité > Quantité toujours
+
+                    **🔴 Revenge Trading**
+                    - Après une perte, ne pas doubler les positions
+                    - Respecter le plan initial
+
+                    **🔴 Curve Fitting**
+                    - Éviter les stratégies "trop parfaites"
+                    - Favoriser la simplicité
+
+                    **🔴 Survivorship Bias**
+                    - Tester sur indices complets
+                    - Inclure les entreprises disparues
+                    """)
+
+                # Section Outils et Ressources
+                st.markdown("""
+                <div style='background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                            padding: 20px; border-radius: 10px; margin: 15px 0;'>
+                    <h3 style='color: white; text-align: center; margin: 0;'>
+                        🛠️ OUTILS ET RESSOURCES RECOMMANDÉS
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                tools_col1, tools_col2, tools_col3 = st.columns(3)
+
+                with tools_col1:
+                    st.markdown("""
+                    #### 📚 **ÉDUCATION**
+                    **Livres essentiels :**
+                    - "Quantitative Trading" - Ernest Chan
+                    - "Trading Systems" - Urban Jaekle
+                    - "Evidence-Based TA" - David Aronson
+
+                    **📊 Plateformes de données :**
+                    - Yahoo Finance (gratuit)
+                    - Alpha Vantage API
+                    - Quandl/NASDAQ Data Link
+                    """)
+
+                with tools_col2:
+                    st.markdown("""
+                    #### 💻 **TECHNOLOGIES**
+                    **Backtesting :**
+                    - Python : Backtrader, Zipline
+                    - R : quantstrat, PerformanceAnalytics
+                    - Professionnel : QuantConnect, Quantopian
+
+                    **📈 Visualisation :**
+                    - Python : Matplotlib, Plotly, Seaborn
+                    - R : ggplot2, plotly
+                    - Tableau, Power BI pour dashboards
+                    """)
+
+                with tools_col3:
+                    st.markdown("""
+                    #### 🔬 **VALIDATION**
+                    **Tests statistiques :**
+                    - Shapiro-Wilk (normalité)
+                    - Augmented Dickey-Fuller (stationnarité)
+                    - Ljung-Box (autocorrélation)
+
+                    **⚖️ Benchmarking :**
+                    - Comparer vs Buy & Hold
+                    - Ajuster pour le risque (Sharpe)
+                    - Tester différentes périodes
+                    """)
+
+                # Section Plan d'Action
+                st.markdown("""
+                <div style='background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+                            padding: 20px; border-radius: 10px; margin: 15px 0;'>
+                    <h3 style='color: white; text-align: center; margin: 0;'>
+                        🚀 PLAN D'ACTION EN 7 ÉTAPES
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+
+                steps_col1, steps_col2 = st.columns(2)
+
+                with steps_col1:
+                    st.markdown("""
+                    #### 🥇 **PHASE 1 : VALIDATION (Semaines 1-4)**
+                    1. **Analyser vos résultats** avec cette app
+                    2. **Identifier points faibles** (DD, volatilité, etc.)
+                    3. **Tester robustesse** sur différentes périodes
+                    4. **Calculer métriques** de référence (Sharpe, Calmar)
+
+                    #### 🥈 **PHASE 2 : OPTIMISATION (Semaines 5-8)**
+                    1. **Améliorer signaux** d'entrée/sortie
+                    2. **Optimiser position sizing** (Kelly, volatilité)
+                    3. **Revoir gestion risque** (stops, targets)
+                    """)
+
+                with steps_col2:
+                    st.markdown("""
+                    #### 🥉 **PHASE 3 : DÉPLOIEMENT (Semaines 9-12)**
+                    1. **Paper trading** 1 mois minimum
+                    2. **Démarrer petit** (5-10% du capital)
+                    3. **Surveiller performance** vs backtest
+                    4. **Ajuster si nécessaire** (market regime)
+
+                    #### 🏆 **MAINTENANCE CONTINUE**
+                    - **Révision mensuelle** des métriques
+                    - **Réajustement trimestriel** des paramètres
+                    - **Mise à jour annuelle** de la stratégie
+                    """)
+
+                # Footer avec rappel important
+                st.markdown("""
+                ---
+                <div style='background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+                            padding: 15px; border-radius: 10px; text-align: center; margin: 15px 0;'>
+                    <h4 style='color: white; margin: 5px 0;'>⚠️ RAPPEL IMPORTANT</h4>
+                    <p style='color: #fecaca; margin: 5px 0; font-size: 14px;'>
+                        <strong>Les performances passées ne garantissent pas les résultats futurs.</strong><br>
+                        Tradez uniquement avec de l'argent que vous pouvez vous permettre de perdre.<br>
+                        Cette application est un outil d'analyse, pas un conseil en investissement.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
 
         st.markdown("---")
 
