@@ -1742,7 +1742,7 @@ class BacktestAnalyzerPro:
             fig.add_trace(go.Histogram(
                 x=monthly_returns,
                 nbinsx=20,
-                histnorm='count',
+                histnorm='',
                 name='Monthly Returns',
                 marker_color='#00D4AA',
                 opacity=0.8
