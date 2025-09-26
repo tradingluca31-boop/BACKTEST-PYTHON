@@ -951,36 +951,35 @@ class BacktestAnalyzerPro:
                     return go.Figure()
                 self.equity_curve = (1 + self.returns).cumprod()
 
-            # Nouvelle méthode plus robuste: calculer les rendements mensuels directement
+            # Méthode plus robuste basée sur l'equity curve avec calcul mensuel correct
             monthly_returns_data = []
 
-            # Parcourir chaque année-mois et calculer le rendement
-            equity_by_date = self.equity_curve.copy()
+            # Utiliser l'equity curve mais avec un calcul différent
+            equity_series = self.equity_curve.copy()
 
-            # Obtenir toutes les combinaisons année-mois présentes dans les données
-            years_months = equity_by_date.index.to_period('M').unique()
+            # Grouper par mois et calculer les rendements
+            for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
+                for month in range(1, 13):
+                    # Obtenir les données pour ce mois spécifique
+                    month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
+                    month_data = equity_series[month_mask]
 
-            for period in years_months:
-                year = period.year
-                month = period.month
+                    if len(month_data) > 0:
+                        # Prendre la première et dernière valeur du mois
+                        start_value = month_data.iloc[0]
+                        end_value = month_data.iloc[-1]
 
-                # Filtrer les données pour ce mois
-                month_data = equity_by_date[equity_by_date.index.to_period('M') == period]
+                        # Calculer le rendement mensuel
+                        if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
+                            monthly_return = ((end_value - start_value) / start_value) * 100
 
-                if len(month_data) > 0:
-                    # Prendre la première et dernière valeur du mois
-                    start_value = month_data.iloc[0]
-                    end_value = month_data.iloc[-1]
-
-                    # Calculer le rendement mensuel
-                    if start_value != 0 and pd.notna(start_value) and pd.notna(end_value):
-                        monthly_return = (end_value - start_value) / start_value * 100
-
-                        monthly_returns_data.append({
-                            'year': year,
-                            'month': month,
-                            'return': monthly_return
-                        })
+                            # Ne prendre que les rendements significatifs (pas exactement 0)
+                            if abs(monthly_return) > 0.001:  # Seuil minimal
+                                monthly_returns_data.append({
+                                    'year': year,
+                                    'month': month,
+                                    'return': monthly_return
+                                })
 
             if len(monthly_returns_data) == 0:
                 st.warning("Pas assez de données pour créer la heatmap mensuelle")
@@ -1074,7 +1073,7 @@ class BacktestAnalyzerPro:
                 ),
                 text=text_matrix,
                 texttemplate='%{text}',
-                textfont={"size": 12, "color": "black", "family": "Arial Black"},
+                textfont={"size": 14, "color": "black", "family": "Arial Black"},
                 hovertemplate='<b>%{y}</b> - <b>%{x}</b><br><b>Return:</b> %{z:.2f}%<extra></extra>',
                 showlegend=False
             ))
@@ -1089,16 +1088,16 @@ class BacktestAnalyzerPro:
                 plot_bgcolor='#1e1e1e',
                 paper_bgcolor='#1e1e1e',
                 font=dict(color='white'),
-                height=400,
+                height=600,
                 xaxis=dict(
                     title='',
-                    tickfont=dict(size=12, color='white', family='Arial Black'),
+                    tickfont=dict(size=14, color='white', family='Arial Black'),
                     side='bottom',
                     showgrid=False
                 ),
                 yaxis=dict(
                     title='',
-                    tickfont=dict(size=12, color='white', family='Arial Black'),
+                    tickfont=dict(size=14, color='white', family='Arial Black'),
                     showgrid=False,
                     autorange='reversed'
                 ),
@@ -1827,6 +1826,74 @@ class BacktestAnalyzerPro:
         except Exception as e:
             st.warning(f"Erreur création distribution rendements mensuels: {e}")
             return go.Figure()
+
+    def get_monthly_averages(self):
+        """
+        Calcule les moyennes de rendement pour chaque mois sur toutes les années
+        """
+        try:
+            if self.equity_curve is None or len(self.equity_curve) == 0:
+                return None, None
+
+            # Utiliser la même logique que dans create_monthly_heatmap
+            monthly_returns_data = []
+            equity_series = self.equity_curve.copy()
+
+            # Grouper par mois et calculer les rendements
+            for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
+                for month in range(1, 13):
+                    # Obtenir les données pour ce mois spécifique
+                    month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
+                    month_data = equity_series[month_mask]
+
+                    if len(month_data) > 0:
+                        # Prendre la première et dernière valeur du mois
+                        start_value = month_data.iloc[0]
+                        end_value = month_data.iloc[-1]
+
+                        # Calculer le rendement mensuel
+                        if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
+                            monthly_return = ((end_value - start_value) / start_value) * 100
+
+                            # Ne prendre que les rendements significatifs
+                            if abs(monthly_return) > 0.001:
+                                monthly_returns_data.append({
+                                    'year': year,
+                                    'month': month,
+                                    'return': monthly_return
+                                })
+
+            if len(monthly_returns_data) == 0:
+                return None, None
+
+            # Convertir en DataFrame et calculer les moyennes par mois
+            df = pd.DataFrame(monthly_returns_data)
+            monthly_averages = df.groupby('month')['return'].mean()
+
+            # Trouver le meilleur et le pire mois
+            if len(monthly_averages) > 0:
+                best_month_num = monthly_averages.idxmax()
+                worst_month_num = monthly_averages.idxmin()
+
+                month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+                best_month = {
+                    'name': month_names[best_month_num - 1],
+                    'avg_return': monthly_averages[best_month_num]
+                }
+
+                worst_month = {
+                    'name': month_names[worst_month_num - 1],
+                    'avg_return': monthly_averages[worst_month_num]
+                }
+
+                return best_month, worst_month
+
+            return None, None
+
+        except Exception as e:
+            return None, None
 
 def main():
     """
@@ -2608,6 +2675,12 @@ def main():
                             st.info("📊 **Moyennes**")
                             st.metric("Mois Moyen", f"{avg_month_val:.2%}")
                             st.metric("Total Mois", f"{total_months}")
+
+                            # Ajouter les métriques des mois moyens
+                            best_month, worst_month = analyzer.get_monthly_averages()
+                            if best_month and worst_month:
+                                st.metric("Meilleur Mois Moyen", f"{best_month['name']}: {best_month['avg_return']:.2f}%")
+                                st.metric("Pire Mois Moyen", f"{worst_month['name']}: {worst_month['avg_return']:.2f}%")
 
                         st.markdown("---")
 
