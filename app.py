@@ -956,46 +956,81 @@ class BacktestAnalyzerPro:
 
             # Utiliser directement les données de trades si disponibles
             if hasattr(self, 'trades_data') and self.trades_data is not None:
-                trades_df = self.trades_data.copy()
+                try:
+                    trades_df = self.trades_data.copy()
 
-                # Convertir time_close en datetime
-                trades_df['close_date'] = pd.to_datetime(trades_df['time_close'], unit='s')
+                    # Debug: voir les colonnes disponibles
+                    available_cols = list(trades_df.columns)
+                    print(f"DEBUG - Colonnes disponibles: {available_cols}")
 
-                # Extraire année et mois de fermeture
-                trades_df['close_year'] = trades_df['close_date'].dt.year
-                trades_df['close_month'] = trades_df['close_date'].dt.month
+                    # Chercher la bonne colonne de fermeture
+                    close_col = None
+                    if 'time_close' in available_cols:
+                        close_col = 'time_close'
+                    elif 'TimeClose' in available_cols:
+                        close_col = 'TimeClose'
+                    elif 'close_time' in available_cols:
+                        close_col = 'close_time'
+                    else:
+                        # Chercher toute colonne contenant 'close'
+                        for col in available_cols:
+                            if 'close' in col.lower():
+                                close_col = col
+                                break
 
-                # Grouper par année-mois et sommer les profits
-                monthly_profits = trades_df.groupby(['close_year', 'close_month'])['profit'].sum()
+                    if close_col is None:
+                        raise ValueError(f"Aucune colonne de fermeture trouvée dans: {available_cols}")
 
-                # Calculer l'equity cumulative pour les rendements
-                trades_df_sorted = trades_df.sort_values('close_date')
-                trades_df_sorted['cumulative_profit'] = trades_df_sorted['profit'].cumsum()
+                    print(f"DEBUG - Utilisation de la colonne: {close_col}")
 
-                # Capital initial
-                initial_capital = 10000
+                    # Convertir la colonne de fermeture en datetime
+                    trades_df['close_date'] = pd.to_datetime(trades_df[close_col], unit='s')
 
-                # Pour chaque mois avec des trades
-                for (year, month), total_profit in monthly_profits.items():
-                    # Trouver l'equity au début du mois
-                    month_start = pd.Timestamp(year, month, 1)
+                    # Extraire année et mois de fermeture
+                    trades_df['close_year'] = trades_df['close_date'].dt.year
+                    trades_df['close_month'] = trades_df['close_date'].dt.month
 
-                    # Trades avant ce mois
-                    before_month = trades_df_sorted[trades_df_sorted['close_date'] < month_start]
-                    start_equity = initial_capital
-                    if len(before_month) > 0:
-                        start_equity = initial_capital + before_month['cumulative_profit'].iloc[-1]
+                    # Grouper par année-mois et sommer les profits
+                    monthly_profits = trades_df.groupby(['close_year', 'close_month'])['profit'].sum()
 
-                    # Calculer le rendement mensuel
-                    monthly_return = (total_profit / start_equity) * 100
+                    # Calculer l'equity cumulative pour les rendements
+                    trades_df_sorted = trades_df.sort_values('close_date')
+                    trades_df_sorted['cumulative_profit'] = trades_df_sorted['profit'].cumsum()
 
-                    monthly_returns_data.append({
-                        'year': int(year),
-                        'month': int(month),
-                        'return': monthly_return
-                    })
+                    # Capital initial
+                    initial_capital = 10000
 
-            else:
+                    # Pour chaque mois avec des trades
+                    for (year, month), total_profit in monthly_profits.items():
+                        # Trouver l'equity au début du mois
+                        month_start = pd.Timestamp(year, month, 1)
+
+                        # Trades avant ce mois
+                        before_month = trades_df_sorted[trades_df_sorted['close_date'] < month_start]
+                        start_equity = initial_capital
+                        if len(before_month) > 0:
+                            start_equity = initial_capital + before_month['cumulative_profit'].iloc[-1]
+
+                        # Calculer le rendement mensuel
+                        monthly_return = (total_profit / start_equity) * 100
+
+                        monthly_returns_data.append({
+                            'year': int(year),
+                            'month': int(month),
+                            'return': monthly_return
+                        })
+
+                    print(f"DEBUG - {len(monthly_returns_data)} mois de données calculés")
+
+                except Exception as e:
+                    # En cas d'erreur, utiliser la méthode fallback
+                    print(f"DEBUG - Erreur: {str(e)}")
+                    if hasattr(self, 'trades_data') and self.trades_data is not None:
+                        print(f"DEBUG - Colonnes réelles: {list(self.trades_data.columns)}")
+                    # Retomber sur la méthode alternative
+                    pass
+
+            if len(monthly_returns_data) == 0:
                 # Fallback: utiliser l'equity curve
                 equity_series = self.equity_curve.copy()
                 for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
