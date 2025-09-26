@@ -955,9 +955,16 @@ class BacktestAnalyzerPro:
             monthly_returns_data = []
 
             # Utiliser directement les données de trades si disponibles
-            if hasattr(self, 'trades_data') and self.trades_data is not None:
+            # Priorité à original_trades_data pour MT5, sinon trades_data
+            source_data = None
+            if hasattr(self, 'original_trades_data') and self.original_trades_data is not None:
+                source_data = self.original_trades_data
+            elif hasattr(self, 'trades_data') and self.trades_data is not None:
+                source_data = self.trades_data
+
+            if source_data is not None:
                 try:
-                    trades_df = self.trades_data.copy()
+                    trades_df = source_data.copy()
 
                     # Debug: voir les colonnes disponibles
                     available_cols = list(trades_df.columns)
@@ -1025,8 +1032,8 @@ class BacktestAnalyzerPro:
                 except Exception as e:
                     # En cas d'erreur, utiliser la méthode fallback
                     print(f"DEBUG - Erreur: {str(e)}")
-                    if hasattr(self, 'trades_data') and self.trades_data is not None:
-                        print(f"DEBUG - Colonnes réelles: {list(self.trades_data.columns)}")
+                    if source_data is not None:
+                        print(f"DEBUG - Colonnes réelles: {list(source_data.columns)}")
                     # Retomber sur la méthode alternative
                     pass
 
@@ -2272,8 +2279,12 @@ def main():
                     df = pd.read_csv(uploaded_file)
 
                 # Détecter le format MT5 (avec colonnes magic, symbol, type, etc.)
+                original_df = None
                 if 'profit' in df.columns and 'time_close' in df.columns:
                     st.info("🎯 **Fichier MT5 détecté !** Conversion automatique en cours...")
+
+                    # Sauvegarder le DataFrame original AVANT la conversion
+                    original_df = df.copy()
 
                     # Convertir les timestamps MT5 en dates
                     df['time_close_dt'] = pd.to_datetime(df['time_close'], unit='s', errors='coerce')
@@ -2303,6 +2314,9 @@ def main():
                 st.stop()
 
             if analyzer.load_data(df, data_type):
+                # Si on a un DataFrame original MT5, le sauvegarder pour les calculs précis
+                if original_df is not None:
+                    analyzer.original_trades_data = original_df
                 st.success("✅ Données chargées avec succès!")
 
                 # Afficher aperçu des données
