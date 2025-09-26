@@ -954,26 +954,66 @@ class BacktestAnalyzerPro:
             # Calcul basé sur les dates de fermeture réelles des trades
             monthly_returns_data = []
 
-            # Utiliser l'equity curve pour le calcul mensuel
-            equity_series = self.equity_curve.copy()
+            # Utiliser directement les données de trades si disponibles
+            if hasattr(self, 'trades_data') and self.trades_data is not None:
+                trades_df = self.trades_data.copy()
 
-            for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
-                for month in range(1, 13):
-                    month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
-                    month_data = equity_series[month_mask]
+                # Convertir time_close en datetime
+                trades_df['close_date'] = pd.to_datetime(trades_df['time_close'], unit='s')
 
-                    if len(month_data) > 0:
-                        start_value = month_data.iloc[0]
-                        end_value = month_data.iloc[-1]
+                # Extraire année et mois de fermeture
+                trades_df['close_year'] = trades_df['close_date'].dt.year
+                trades_df['close_month'] = trades_df['close_date'].dt.month
 
-                        if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
-                            monthly_return = ((end_value - start_value) / start_value) * 100
+                # Grouper par année-mois et sommer les profits
+                monthly_profits = trades_df.groupby(['close_year', 'close_month'])['profit'].sum()
 
-                            monthly_returns_data.append({
-                                'year': year,
-                                'month': month,
-                                'return': monthly_return
-                            })
+                # Calculer l'equity cumulative pour les rendements
+                trades_df_sorted = trades_df.sort_values('close_date')
+                trades_df_sorted['cumulative_profit'] = trades_df_sorted['profit'].cumsum()
+
+                # Capital initial
+                initial_capital = 10000
+
+                # Pour chaque mois avec des trades
+                for (year, month), total_profit in monthly_profits.items():
+                    # Trouver l'equity au début du mois
+                    month_start = pd.Timestamp(year, month, 1)
+
+                    # Trades avant ce mois
+                    before_month = trades_df_sorted[trades_df_sorted['close_date'] < month_start]
+                    start_equity = initial_capital
+                    if len(before_month) > 0:
+                        start_equity = initial_capital + before_month['cumulative_profit'].iloc[-1]
+
+                    # Calculer le rendement mensuel
+                    monthly_return = (total_profit / start_equity) * 100
+
+                    monthly_returns_data.append({
+                        'year': int(year),
+                        'month': int(month),
+                        'return': monthly_return
+                    })
+
+            else:
+                # Fallback: utiliser l'equity curve
+                equity_series = self.equity_curve.copy()
+                for year in range(equity_series.index.min().year, equity_series.index.max().year + 1):
+                    for month in range(1, 13):
+                        month_mask = (equity_series.index.year == year) & (equity_series.index.month == month)
+                        month_data = equity_series[month_mask]
+
+                        if len(month_data) > 0:
+                            start_value = month_data.iloc[0]
+                            end_value = month_data.iloc[-1]
+
+                            if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
+                                monthly_return = ((end_value - start_value) / start_value) * 100
+                                monthly_returns_data.append({
+                                    'year': year,
+                                    'month': month,
+                                    'return': monthly_return
+                                })
 
             if len(monthly_returns_data) == 0:
                 st.warning("Pas assez de données pour créer la heatmap mensuelle")
