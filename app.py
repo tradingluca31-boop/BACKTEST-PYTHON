@@ -973,13 +973,12 @@ class BacktestAnalyzerPro:
                         if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
                             monthly_return = ((end_value - start_value) / start_value) * 100
 
-                            # Ne prendre que les rendements significatifs (pas exactement 0)
-                            if abs(monthly_return) > 0.001:  # Seuil minimal
-                                monthly_returns_data.append({
-                                    'year': year,
-                                    'month': month,
-                                    'return': monthly_return
-                                })
+                            # Prendre tous les rendements, même ceux proches de 0
+                            monthly_returns_data.append({
+                                'year': year,
+                                'month': month,
+                                'return': monthly_return
+                            })
 
             if len(monthly_returns_data) == 0:
                 st.warning("Pas assez de données pour créer la heatmap mensuelle")
@@ -1855,13 +1854,12 @@ class BacktestAnalyzerPro:
                         if start_value > 0 and pd.notna(start_value) and pd.notna(end_value):
                             monthly_return = ((end_value - start_value) / start_value) * 100
 
-                            # Ne prendre que les rendements significatifs
-                            if abs(monthly_return) > 0.001:
-                                monthly_returns_data.append({
-                                    'year': year,
-                                    'month': month,
-                                    'return': monthly_return
-                                })
+                            # Prendre tous les rendements
+                            monthly_returns_data.append({
+                                'year': year,
+                                'month': month,
+                                'return': monthly_return
+                            })
 
             if len(monthly_returns_data) == 0:
                 return None, None
