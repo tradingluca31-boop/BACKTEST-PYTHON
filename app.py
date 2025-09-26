@@ -1880,7 +1880,7 @@ class BacktestAnalyzerPro:
                           'rgba(0,255,150,0.15)', 'rgba(0,200,255,0.15)', 'rgba(100,100,255,0.15)',
                           'rgba(200,0,255,0.15)']
 
-            # Ajouter TOUTES les zones de drawdown avec largeur minimum pour visibilité
+            # Ajouter TOUTES les zones de drawdown - du VRAI sommet au VRAI creux
             for i, dd in enumerate(drawdown_periods):
                 color = base_colors[i % len(base_colors)]  # Rotation des couleurs
 
@@ -1892,26 +1892,13 @@ class BacktestAnalyzerPro:
                     # Zone plus visible pour le top 5
                     color = base_colors[rank-1].replace('0.15', '0.30')  # Plus opaque
 
-                # Calculer largeur minimum (30 jours) pour les zones très courtes
-                duration = (dd['end'] - dd['start']).days
-                if duration < 30:  # Si moins de 30 jours, étendre la zone
-                    extend_days = (30 - duration) // 2
-                    start_extended = dd['start'] - pd.Timedelta(days=extend_days)
-                    end_extended = dd['end'] + pd.Timedelta(days=extend_days)
-
-                    # S'assurer de ne pas sortir des limites de la série
-                    start_extended = max(start_extended, equity_series.index.min())
-                    end_extended = min(end_extended, equity_series.index.max())
-                else:
-                    start_extended = dd['start']
-                    end_extended = dd['end']
-
+                # Utiliser les VRAIES dates de début et fin (du sommet au creux)
                 fig.add_vrect(
-                    x0=start_extended, x1=end_extended,
+                    x0=dd['start'], x1=dd['end'],
                     fillcolor=color,
-                    opacity=0.5 if is_top_5 else 0.3,  # Plus opaque pour meilleure visibilité
-                    line_width=2 if is_top_5 else 1,   # Bordures plus épaisses
-                    line_color='red' if is_top_5 else color.replace('0.15', '1.0').replace('rgba', 'rgb').replace(',0.3)', ')')
+                    opacity=0.4 if is_top_5 else 0.2,
+                    line_width=2 if is_top_5 else 1,
+                    line_color='red' if is_top_5 else None
                 )
 
             # Dates de début et fin
