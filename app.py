@@ -1763,24 +1763,17 @@ class BacktestAnalyzerPro:
 
     def create_worst_drawdowns_chart(self):
         """
-        Graphique des 5 pires périodes de drawdown avec courbe d'equity RÉELLE
+        Graphique des TOUTES les périodes de drawdown avec zones depuis TOUS les sommets
         """
         try:
-            # Debug: forcer l'utilisation des vraies données de trades MT5
-            print("DEBUG DRAWDOWN: Recherche des données MT5...")
+            # Utiliser les vraies données de trades MT5
             source_data = None
-
             if hasattr(self, 'original_trades_data') and self.original_trades_data is not None:
                 source_data = self.original_trades_data
-                print(f"DEBUG: Utilisation original_trades_data avec {len(source_data)} trades")
             elif hasattr(self, 'trades_data') and self.trades_data is not None:
                 source_data = self.trades_data
-                print(f"DEBUG: Utilisation trades_data avec {len(source_data)} trades")
-            else:
-                print("DEBUG: Aucune donnée de trades trouvée")
 
             if source_data is not None and 'time_close' in source_data.columns:
-                print("DEBUG: Calcul des drawdowns avec les vraies données MT5")
                 # Créer l'equity curve réelle
                 trades_df = source_data.copy()
                 trades_df['close_date'] = pd.to_datetime(trades_df['time_close'], unit='s')
@@ -1788,16 +1781,14 @@ class BacktestAnalyzerPro:
 
                 initial_capital = 10000
                 trades_df_sorted['equity'] = initial_capital + trades_df_sorted['profit'].cumsum()
-
                 equity_series = pd.Series(trades_df_sorted['equity'].values, index=trades_df_sorted['close_date'])
 
                 # Calculer les drawdowns depuis High Water Mark
-                hwm = equity_series.expanding().max()  # High Water Mark cumulatif
-                drawdowns = (equity_series - hwm) / hwm * 100  # Drawdown en %
+                hwm = equity_series.expanding().max()
+                drawdowns = (equity_series - hwm) / hwm * 100
 
             else:
                 # Fallback vers equity curve basique
-                print("DEBUG: FALLBACK vers equity curve basique - PAS OPTIMAL!")
                 if self.equity_curve is None or len(self.equity_curve) == 0:
                     if self.returns is None or len(self.returns) == 0:
                         return go.Figure()
@@ -1807,7 +1798,7 @@ class BacktestAnalyzerPro:
                 hwm = equity_series.expanding().max()
                 drawdowns = (equity_series - hwm) / hwm * 100
 
-            # Identifier les périodes de drawdown avec la méthode correcte
+            # Identifier TOUTES les périodes de drawdown
             drawdown_periods = []
             in_drawdown = False
             start_idx = None
@@ -1818,13 +1809,13 @@ class BacktestAnalyzerPro:
                 current_dd = drawdowns.iloc[i]
                 current_hwm = hwm.iloc[i]
 
-                if current_dd < -0.1 and not in_drawdown:  # Début drawdown
+                if current_dd < -0.1 and not in_drawdown:  # Début drawdown (seuil 0.1%)
                     in_drawdown = True
                     start_idx = i
                     start_date = date
                     peak_equity = current_hwm
 
-                elif current_dd >= 0 and in_drawdown:  # Fin drawdown
+                elif current_dd >= 0 and in_drawdown:  # Fin drawdown (retour à l'équilibre)
                     in_drawdown = False
                     end_date = date
                     end_idx = i
@@ -1853,19 +1844,17 @@ class BacktestAnalyzerPro:
                     'peak_equity': peak_equity
                 })
 
-            # Prendre les 5 pires
+            # Prendre les 5 pires pour affichage dans le titre
             worst_5 = sorted(drawdown_periods, key=lambda x: x['max_drawdown'])[:5]
 
             # Créer le graphique
             fig = go.Figure()
 
-            # Courbe d'equity principale (utiliser la vraie equity_series)
+            # Courbe d'equity principale
             if source_data is not None and 'time_close' in source_data.columns:
-                # Convertir en pourcentages de rendement depuis le capital initial
                 initial_capital = 10000
                 equity_pct = ((equity_series - initial_capital) / initial_capital) * 100
             else:
-                # Fallback pour equity curve normalisée
                 equity_pct = (equity_series - 1) * 100
 
             fig.add_trace(go.Scatter(
@@ -1876,18 +1865,31 @@ class BacktestAnalyzerPro:
                 line=dict(color='#00D4AA', width=2)
             ))
 
-            # Ajouter les zones de drawdown
-            colors = ['rgba(255,0,0,0.2)', 'rgba(255,100,0,0.2)', 'rgba(255,150,0,0.2)',
-                     'rgba(255,200,0,0.2)', 'rgba(255,255,0,0.2)']
+            # Couleurs pour les zones de drawdown (rotation sur palette)
+            base_colors = ['rgba(255,0,0,0.15)', 'rgba(255,100,0,0.15)', 'rgba(255,150,0,0.15)',
+                          'rgba(255,200,0,0.15)', 'rgba(255,255,0,0.15)', 'rgba(150,255,0,0.15)',
+                          'rgba(0,255,150,0.15)', 'rgba(0,200,255,0.15)', 'rgba(100,100,255,0.15)',
+                          'rgba(200,0,255,0.15)']
 
-            for i, dd in enumerate(worst_5):
-                if i < len(colors):
-                    fig.add_vrect(
-                        x0=dd['start'], x1=dd['end'],
-                        fillcolor=colors[i],
-                        opacity=0.3,
-                        line_width=0
-                    )
+            # Ajouter TOUTES les zones de drawdown avec légende pour les 5 pires
+            for i, dd in enumerate(drawdown_periods):
+                color = base_colors[i % len(base_colors)]  # Rotation des couleurs
+
+                # Vérifier si c'est dans le top 5 pour la légende
+                is_top_5 = dd in worst_5
+                rank = worst_5.index(dd) + 1 if is_top_5 else None
+
+                if is_top_5:
+                    # Zone plus visible pour le top 5
+                    color = base_colors[rank-1].replace('0.15', '0.25')  # Plus opaque
+
+                fig.add_vrect(
+                    x0=dd['start'], x1=dd['end'],
+                    fillcolor=color,
+                    opacity=0.4 if is_top_5 else 0.2,
+                    line_width=1 if is_top_5 else 0,
+                    line_color='red' if is_top_5 else None
+                )
 
             # Dates de début et fin
             start_date = equity_series.index.min().strftime('%d %b \'%y')
@@ -1895,7 +1897,7 @@ class BacktestAnalyzerPro:
 
             fig.update_layout(
                 title={
-                    'text': f'Worst 5 Drawdown Periods<br><sub>{start_date} - {end_date}</sub>',
+                    'text': f'Toutes les Périodes de Drawdown (Top 5 en surbrillance)<br><sub>{start_date} - {end_date}</sub>',
                     'x': 0.5,
                     'font': {'size': 18, 'color': 'white'}
                 },
