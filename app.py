@@ -1633,8 +1633,8 @@ class BacktestAnalyzerPro:
                         margin-top: 5px;
                     }}
                     .rr-highlight {{
-                        background: white;
-                        color: #2980b9;
+                        background: linear-gradient(135deg, #f093fb, #f5576c);
+                        color: white;
                     }}
                 </style>
             </head>
@@ -2238,17 +2238,16 @@ def main():
             margin-bottom: 2rem;
         }
         .metric-card {
-            background: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 15px;
             padding: 1.5rem;
             margin: 1rem 0;
-            color: #2980b9;
+            color: white;
             text-align: center;
             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         }
         .rr-metric {
-            background: white;
-            color: #2980b9;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
     </style>
     """, unsafe_allow_html=True)
