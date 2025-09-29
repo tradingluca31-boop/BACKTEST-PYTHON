@@ -4471,6 +4471,111 @@ def main():
                                     avg_profit_per_year = actual_profit_total / period_years
                                     st.caption(f"📈 Profit moyen par an: {avg_profit_per_year:,.0f}€")
 
+                        # Section FTMO Drawdown Analysis
+                        st.markdown("## 📊 FTMO Drawdown Analysis")
+
+                        try:
+                            # 1. Balance DD (ignore positions ouvertes)
+                            trades_df_sorted = analyzer.df.copy().sort_values('time_close')
+                            trades_df_sorted['balance'] = trades_df_sorted['profit'].cumsum()
+                            balance_hwm = trades_df_sorted['balance'].expanding().max()
+                            balance_dd = (trades_df_sorted['balance'] - balance_hwm) / balance_hwm.abs()
+                            max_balance_dd = balance_dd.min() * 100
+
+                            # 2. Equity DD (inclut swap + commission)
+                            trades_df_sorted['equity'] = (trades_df_sorted['balance'] +
+                                                        trades_df_sorted['swap'] +
+                                                        trades_df_sorted['commission'])
+                            equity_hwm = trades_df_sorted['equity'].expanding().max()
+                            equity_dd = (trades_df_sorted['equity'] - equity_hwm) / equity_hwm.abs()
+                            max_equity_dd = equity_dd.min() * 100
+
+                            # Calcul de la différence
+                            dd_difference = abs(max_equity_dd - max_balance_dd)
+                            total_swaps = trades_df_sorted['swap'].sum()
+
+                            # Interface FTMO
+                            st.markdown("""
+                            <div style='background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                                       padding: 20px; border-radius: 15px; margin: 10px 0;'>
+                                <h2 style='color: white; margin: 0; text-align: center;'>
+                                    ⚠️ FTMO DRAWDOWN COMPLIANCE
+                                </h2>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            col1, col2 = st.columns(2)
+
+                            with col1:
+                                st.markdown(f"""
+                                <div style='background: rgba(255,255,255,0.1);
+                                           padding: 20px; border-radius: 10px; margin: 5px;'>
+                                    <div style='display: flex; align-items: center; margin-bottom: 10px;'>
+                                        <span style='font-size: 24px; margin-right: 10px;'>📊</span>
+                                        <span style='color: #87CEEB; font-weight: bold;'>Solde DD Relatif (Balance)</span>
+                                    </div>
+                                    <div style='font-size: 36px; font-weight: bold; color: white; margin: 15px 0;'>
+                                        {max_balance_dd:.2f}%
+                                    </div>
+                                    <div style='color: #ffcccb; font-size: 14px;'>
+                                        Ignore les positions ouvertes
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            with col2:
+                                st.markdown(f"""
+                                <div style='background: rgba(255,255,255,0.1);
+                                           padding: 20px; border-radius: 10px; margin: 5px;
+                                           border: 2px solid #ffd700;'>
+                                    <div style='display: flex; align-items: center; margin-bottom: 10px;'>
+                                        <span style='font-size: 24px; margin-right: 10px;'>💰</span>
+                                        <span style='color: #ffd700; font-weight: bold;'>Fond DD Relatif (Equity) - FTMO</span>
+                                    </div>
+                                    <div style='font-size: 36px; font-weight: bold; color: #ffd700; margin: 15px 0;'>
+                                        {max_equity_dd:.2f}%
+                                    </div>
+                                    <div style='color: #ffd700; font-size: 14px;'>
+                                        Inclut swap + commission + flottant
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            # Règle FTMO
+                            st.markdown(f"""
+                            <div style='background: rgba(139, 69, 19, 0.3);
+                                       padding: 15px; border-radius: 10px; margin: 10px 0;'>
+                                <div style='display: flex; align-items: center; margin-bottom: 10px;'>
+                                    <span style='font-size: 24px; margin-right: 10px;'>🎯</span>
+                                    <span style='color: #ffd700; font-weight: bold; font-size: 18px;'>RÈGLE FTMO</span>
+                                </div>
+                                <div style='color: white; text-align: center; font-size: 16px; margin: 10px 0;'>
+                                    FTMO surveille toujours l'Equity (Fond) qui inclut les positions ouvertes, swap et commissions.
+                                </div>
+                                <div style='display: flex; justify-content: space-between; margin-top: 15px;'>
+                                    <div style='text-align: center;'>
+                                        <div style='color: #ff9500; font-size: 14px; font-weight: bold;'>Différence DD:</div>
+                                        <div style='color: #ff9500; font-size: 20px; font-weight: bold;'>{dd_difference:.3f}%</div>
+                                    </div>
+                                    <div style='text-align: center;'>
+                                        <div style='color: #ff6b6b; font-size: 14px; font-weight: bold;'>Total Swaps:</div>
+                                        <div style='color: #ff6b6b; font-size: 20px; font-weight: bold;'>{total_swaps:.2f}€</div>
+                                    </div>
+                                    <div style='text-align: center;'>
+                                        <div style='color: #32cd32; font-size: 14px; font-weight: bold;'>Impact:</div>
+                                        <div style='color: #32cd32; font-size: 20px; font-weight: bold;'>{"Minimal" if dd_difference < 0.5 else "Modéré" if dd_difference < 1.0 else "Élevé"}</div>
+                                    </div>
+                                </div>
+                                <div style='background: rgba(255, 140, 0, 0.2); padding: 8px; border-radius: 5px; margin-top: 10px;'>
+                                    <div style='color: #ffa500; font-size: 13px; text-align: center;'>
+                                        ⚠️ Dans ce backtest, swaps/commissions ont un impact {'minimal' if dd_difference < 0.5 else 'modéré' if dd_difference < 1.0 else 'élevé'} sur le DD
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        except Exception as e:
+                            st.error(f"Erreur calcul FTMO DD: {str(e)}")
                         if show_charts:
                             # Graphiques
                             st.markdown("## 📊 Visualisations")
