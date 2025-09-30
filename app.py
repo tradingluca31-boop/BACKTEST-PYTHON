@@ -173,6 +173,20 @@ class BacktestAnalyzerPro:
                 self.returns = self.equity_curve.pct_change().dropna()
             elif data_type == 'trades':
                 self.trades_data = df
+                self.original_trades_data = df.copy()  # Conserver une copie originale
+
+                # Pour les trades MT5, reconstruire l'index basé sur time_close
+                if 'time_close' in df.columns:
+                    # Convertir les timestamps en dates
+                    df['close_date'] = pd.to_datetime(df['time_close'], unit='s', errors='coerce')
+                    df = df.dropna(subset=['close_date'])
+                    df = df.set_index('close_date')
+                    df = df.sort_index()
+
+                    # Utiliser la colonne 'profit' si disponible
+                    if 'profit' in df.columns:
+                        data_series = pd.to_numeric(df['profit'], errors='coerce').dropna()
+
                 # Si trades, créer des returns à partir des P&L
                 # Pour MT5, utiliser les profits directement comme equity curve
                 pnl_cumulative = data_series.cumsum()
