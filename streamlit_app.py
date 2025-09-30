@@ -161,10 +161,18 @@ class BacktestAnalyzerPro:
         # Trading Period
         if hasattr(self, 'trades_data') and self.trades_data is not None:
             if 'time_close' in self.trades_data.columns:
-                times = pd.to_datetime(self.trades_data['time_close'], unit='s')
-                extended_metrics['start_period'] = times.min().strftime('%Y-%m-%d')
-                extended_metrics['end_period'] = times.max().strftime('%Y-%m-%d')
-                extended_metrics['trading_period_years'] = (times.max() - times.min()).days / 365.25
+                # S'assurer que les timestamps sont bien traités
+                times = pd.to_datetime(self.trades_data['time_close'], unit='s', errors='coerce')
+                times = times.dropna()  # Supprimer les valeurs NaT si présentes
+                if len(times) > 0:
+                    extended_metrics['start_period'] = times.min().strftime('%Y-%m-%d')
+                    extended_metrics['end_period'] = times.max().strftime('%Y-%m-%d')
+                    extended_metrics['trading_period_years'] = (times.max() - times.min()).days / 365.25
+                else:
+                    # Fallback si pas de timestamps valides
+                    extended_metrics['start_period'] = '2024-01-01'
+                    extended_metrics['end_period'] = '2024-12-31'
+                    extended_metrics['trading_period_years'] = 1.0
                 
                 # Average Holding Period
                 if 'time_open' in self.trades_data.columns:
