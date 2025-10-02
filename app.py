@@ -1250,8 +1250,8 @@ class BacktestAnalyzerPro:
                     'x': 0.5,
                     'font': {'size': 20, 'color': 'white', 'family': 'Arial Black'}
                 },
-                plot_bgcolor='#1e1e1e',
-                paper_bgcolor='#1e1e1e',
+                plot_bgcolor='#1a1a2e',
+                paper_bgcolor='#1a1a2e',
                 font=dict(color='white'),
                 height=600,
                 xaxis=dict(
@@ -1285,7 +1285,7 @@ class BacktestAnalyzerPro:
             x=self.returns * 100,
             nbinsx=50,
             name='Returns Distribution',
-            marker_color='skyblue',
+            marker_color='#74b9ff',
             opacity=0.7
         ))
 
@@ -1443,8 +1443,8 @@ class BacktestAnalyzerPro:
                 yaxis_title='Occurrences',
                 template='plotly_dark',
                 height=400,
-                plot_bgcolor='#1a1a1a',
-                paper_bgcolor='#1a1a1a',
+                plot_bgcolor='#1a1a2e',
+                paper_bgcolor='#1a1a2e',
                 font=dict(color='white'),
                 xaxis=dict(
                     gridcolor='#333333',
@@ -1617,7 +1617,7 @@ class BacktestAnalyzerPro:
                     }}
                     .header {{
                         text-align: center;
-                        background: linear-gradient(135deg, #1e3c72, #2a5298);
+                        background: #16213e;
                         color: white;
                         padding: 30px;
                         border-radius: 10px;
@@ -1647,7 +1647,7 @@ class BacktestAnalyzerPro:
                         margin-top: 5px;
                     }}
                     .rr-highlight {{
-                        background: linear-gradient(135deg, #f093fb, #f5576c);
+                        background: #d63031;
                         color: white;
                     }}
                 </style>
@@ -1751,7 +1751,7 @@ class BacktestAnalyzerPro:
             fig = go.Figure(data=go.Bar(
                 x=years_list,
                 y=returns_list,
-                marker_color='#00D4AA',
+                marker_color='#00b894',
                 text=[f'{ret:.1f}%' for ret in returns_list],
                 textposition='outside'
             ))
@@ -1762,8 +1762,8 @@ class BacktestAnalyzerPro:
                     'x': 0.5,
                     'font': {'size': 18, 'color': 'white'}
                 },
-                plot_bgcolor='#1e1e1e',
-                paper_bgcolor='#1e1e1e',
+                plot_bgcolor='#1a1a2e',
+                paper_bgcolor='#1a1a2e',
                 font=dict(color='white'),
                 xaxis=dict(
                     title='',
@@ -1948,8 +1948,8 @@ class BacktestAnalyzerPro:
                     'x': 0.5,
                     'font': {'size': 18, 'color': 'white'}
                 },
-                plot_bgcolor='#1e1e1e',
-                paper_bgcolor='#1e1e1e',
+                plot_bgcolor='#1a1a2e',
+                paper_bgcolor='#1a1a2e',
                 font=dict(color='white'),
                 xaxis=dict(
                     title='',
@@ -2054,7 +2054,7 @@ class BacktestAnalyzerPro:
                 nbinsx=20,
                 histnorm='',
                 name='Monthly Returns',
-                marker_color='#00D4AA',
+                marker_color='#00b894',
                 opacity=0.8
             ))
 
@@ -2089,8 +2089,8 @@ class BacktestAnalyzerPro:
                     'x': 0.5,
                     'font': {'size': 18, 'color': 'white'}
                 },
-                plot_bgcolor='#1e1e1e',
-                paper_bgcolor='#1e1e1e',
+                plot_bgcolor='#1a1a2e',
+                paper_bgcolor='#1a1a2e',
                 font=dict(color='white'),
                 xaxis=dict(
                     title='',
@@ -2235,33 +2235,77 @@ def main():
         layout="wide"
     )
 
-    # CSS personnalisé
+    # CSS personnalisé - Thème unifié avec couleurs unies
     st.markdown("""
     <style>
+        /* Palette de couleurs unies */
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --accent-primary: #0f4c75;
+            --accent-secondary: #3282b8;
+            --success: #00b894;
+            --error: #d63031;
+            --warning: #fdcb6e;
+            --info: #74b9ff;
+        }
+
+        /* Fond de l'application */
+        .stApp {
+            background-color: #1a1a2e;
+        }
+
+        /* Sidebar */
+        section[data-testid="stSidebar"] {
+            background-color: #16213e;
+        }
+
         .main-header {
             font-size: 3rem;
-            color: #1e3c72;
+            color: #3282b8;
             text-align: center;
             margin-bottom: 1rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         .subtitle {
             text-align: center;
-            color: #2a5298;
+            color: #74b9ff;
             font-size: 1.2rem;
             margin-bottom: 2rem;
         }
         .metric-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0f4c75;
             border-radius: 15px;
             padding: 1.5rem;
             margin: 1rem 0;
             color: white;
             text-align: center;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
         .rr-metric {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: #d63031;
+        }
+
+        /* Meilleurs styles pour les boutons */
+        .stButton>button {
+            background-color: #3282b8;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 0.5rem 2rem;
+            font-weight: 600;
+        }
+        .stButton>button:hover {
+            background-color: #0f4c75;
+        }
+
+        /* Widgets */
+        .stTextInput>div>div>input,
+        .stNumberInput>div>div>input,
+        .stSelectbox>div>div>select {
+            background-color: #16213e;
+            color: white;
+            border: 1px solid #3282b8;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -2289,12 +2333,12 @@ def main():
         # Tutoriel interactif pour les types de données
         with st.expander("🎓 TUTORIEL COMPLET - Guide d'utilisation de l'analyseur de backtest", expanded=False):
             st.markdown("""
-            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            <div style='background: #0f4c75;
                         padding: 20px; border-radius: 15px; margin: 10px 0;'>
                 <h2 style='color: white; text-align: center; margin: 0;'>
                     📊 Guide Complet d'Analyse de Backtest
                 </h2>
-                <p style='color: #e2e8f0; text-align: center; margin: 10px 0;'>
+                <p style='color: #74b9ff; text-align: center; margin: 10px 0;'>
                     Maîtrisez l'art de l'analyse quantitative de vos stratégies de trading
                 </p>
             </div>
@@ -2455,7 +2499,7 @@ def main():
 
                 with config_col1:
                     st.markdown("""
-                    <div style='background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                    <div style='background: #3282b8;
                                 padding: 15px; border-radius: 10px; margin: 10px 0;'>
                         <h4 style='color: white; margin: 0;'>🎯 Capital Initial</h4>
                     </div>
@@ -2473,7 +2517,7 @@ def main():
                     """)
 
                     st.markdown("""
-                    <div style='background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+                    <div style='background: #00b894;
                                 padding: 15px; border-radius: 10px; margin: 10px 0;'>
                         <h4 style='color: white; margin: 0;'>📊 Drawdown Target</h4>
                     </div>
@@ -2492,7 +2536,7 @@ def main():
 
                 with config_col2:
                     st.markdown("""
-                    <div style='background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+                    <div style='background: #d63031;
                                 padding: 15px; border-radius: 10px; margin: 10px 0;'>
                         <h4 style='color: white; margin: 0;'>💰 Profit Targets</h4>
                     </div>
@@ -2511,7 +2555,7 @@ def main():
                     """)
 
                     st.markdown("""
-                    <div style='background: linear-gradient(135deg, #7c2d92 0%, #c026d3 100%);
+                    <div style='background: #74b9ff;
                                 padding: 15px; border-radius: 10px; margin: 10px 0;'>
                         <h4 style='color: white; margin: 0;'>🔧 Options Avancées</h4>
                     </div>
@@ -2563,7 +2607,7 @@ def main():
 
                 # Section Rendements
                 st.markdown("""
-                <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+                <div style='background: #0f4c75;
                             padding: 20px; border-radius: 10px; margin: 15px 0;'>
                     <h3 style='color: white; text-align: center; margin: 0;'>
                         💰 MÉTRIQUES DE RENDEMENT
@@ -2608,7 +2652,7 @@ def main():
 
                 # Section Risques
                 st.markdown("""
-                <div style='background: linear-gradient(135deg, #dc2626 0%, #f59e0b 100%);
+                <div style='background: #d63031;
                             padding: 20px; border-radius: 10px; margin: 15px 0;'>
                     <h3 style='color: white; text-align: center; margin: 0;'>
                         ⚠️ MÉTRIQUES DE RISQUE
@@ -2652,7 +2696,7 @@ def main():
 
                 # Section Ratios
                 st.markdown("""
-                <div style='background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+                <div style='background: #00b894;
                             padding: 20px; border-radius: 10px; margin: 15px 0;'>
                     <h3 style='color: white; text-align: center; margin: 0;'>
                         🏆 RATIOS DE PERFORMANCE
@@ -2702,7 +2746,7 @@ def main():
 
                 # Section Analyse Globale
                 st.markdown("""
-                <div style='background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+                <div style='background: #74b9ff;
                             padding: 20px; border-radius: 10px; margin: 15px 0;'>
                     <h3 style='color: white; text-align: center; margin: 0;'>
                         🔍 ANALYSE GLOBALE DE VOTRE STRATÉGIE
@@ -2767,7 +2811,7 @@ def main():
 
                 # Section Signaux d'Alerte
                 st.markdown("""
-                <div style='background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+                <div style='background: #d63031;
                             padding: 20px; border-radius: 10px; margin: 15px 0;'>
                     <h3 style='color: white; text-align: center; margin: 0;'>
                         🚨 SIGNAUX D'ALERTE À SURVEILLER
@@ -2820,7 +2864,7 @@ def main():
 
                 # Section Optimisation
                 st.markdown("""
-                <div style='background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+                <div style='background: #00b894;
                             padding: 20px; border-radius: 10px; margin: 15px 0;'>
                     <h3 style='color: white; text-align: center; margin: 0;'>
                         🚀 PISTES D'OPTIMISATION
@@ -2863,7 +2907,7 @@ def main():
 
                 # Section Trading Discipline
                 st.markdown("""
-                <div style='background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                <div style='background: #fdcb6e;
                             padding: 20px; border-radius: 10px; margin: 15px 0;'>
                     <h3 style='color: white; text-align: center; margin: 0;'>
                         🧠 DISCIPLINE ET PSYCHOLOGIE
@@ -2923,7 +2967,7 @@ def main():
 
                 # Section Outils et Ressources
                 st.markdown("""
-                <div style='background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                <div style='background: #00b894;
                             padding: 20px; border-radius: 10px; margin: 15px 0;'>
                     <h3 style='color: white; text-align: center; margin: 0;'>
                         🛠️ OUTILS ET RESSOURCES RECOMMANDÉS
@@ -2977,7 +3021,7 @@ def main():
 
                 # Section Plan d'Action
                 st.markdown("""
-                <div style='background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+                <div style='background: #74b9ff;
                             padding: 20px; border-radius: 10px; margin: 15px 0;'>
                     <h3 style='color: white; text-align: center; margin: 0;'>
                         🚀 PLAN D'ACTION EN 7 ÉTAPES
@@ -3018,7 +3062,7 @@ def main():
                 # Footer avec rappel important
                 st.markdown("""
                 ---
-                <div style='background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+                <div style='background: #d63031;
                             padding: 15px; border-radius: 10px; text-align: center; margin: 15px 0;'>
                     <h4 style='color: white; margin: 5px 0;'>⚠️ RAPPEL IMPORTANT</h4>
                     <p style='color: #fecaca; margin: 5px 0; font-size: 14px;'>
@@ -3364,7 +3408,7 @@ def main():
 
                         # Display Strategy Overview in a styled box
                         st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        <div style="background: #0f4c75;
                                     padding: 25px; border-radius: 15px; color: white; margin: 20px 0;">
                             <h3 style="text-align: center; margin: 0 0 20px 0;">📊 STRATEGY OVERVIEW</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
@@ -3876,7 +3920,7 @@ def main():
 
                         # Display Expected Returns and VaR in a dark themed section
                         st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+                        <div style="background: #16213e;
                                     padding: 25px; border-radius: 15px; color: white; margin: 20px 0;">
                             <h3 style="text-align: center; margin: 0 0 20px 0; color: #ecf0f1;">🎯 Expected Returns and VaR</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;">
@@ -3913,7 +3957,7 @@ def main():
 
                         with col1:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Log Return</h4>
                                 <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Log_Return', 0):.2%}</h2>
                             </div>
@@ -3921,7 +3965,7 @@ def main():
 
                         with col2:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Absolute Return</h4>
                                 <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Absolute_Return', 0):.2%}</h2>
                             </div>
@@ -3929,7 +3973,7 @@ def main():
 
                         with col3:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Alpha</h4>
                                 <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Alpha', 0):.2%}</h2>
                             </div>
@@ -3937,7 +3981,7 @@ def main():
 
                         with col4:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Number of Trades</h4>
                                 <h2 style="margin: 10px 0; color: #90a4ae;">{metrics.get('Number_of_Trades', 0)}</h2>
                             </div>
@@ -3952,7 +3996,7 @@ def main():
 
                         with col1:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Sharpe Ratio</h4>
                                 <h2 style="margin: 10px 0; color: #68d391;">{metrics.get('Sharpe', 0):.2f}</h2>
                             </div>
@@ -3960,7 +4004,7 @@ def main():
 
                         with col2:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Probabilistic Sharpe Ratio</h4>
                                 <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Probabilistic_Sharpe_Ratio', 0):.2%}</h2>
                             </div>
@@ -3968,7 +4012,7 @@ def main():
 
                         with col3:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Sortino Ratio</h4>
                                 <h2 style="margin: 10px 0; color: #9f7aea;">{metrics.get('Sortino', 0):.2f}</h2>
                             </div>
@@ -3977,7 +4021,7 @@ def main():
                         with col4:
                             calmar_color = "#f56565" if metrics.get('Calmar', 0) < 1 else "#68d391"
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Calmar Ratio</h4>
                                 <h2 style="margin: 10px 0; color: {calmar_color};">{metrics.get('Calmar', 0):.2f}</h2>
                             </div>
@@ -3992,7 +4036,7 @@ def main():
 
                         with col1:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Max Drawdown</h4>
                                 <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Max_Drawdown', 0):.2%}</h2>
                             </div>
@@ -4000,7 +4044,7 @@ def main():
 
                         with col2:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Longest Drawdown</h4>
                                 <h2 style="margin: 10px 0; color: #f56565;">{metrics.get('Longest_Drawdown', 0)}</h2>
                             </div>
@@ -4008,7 +4052,7 @@ def main():
 
                         with col3:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Average Drawdown</h4>
                                 <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Average_Drawdown_Pct', 0):.2%}</h2>
                             </div>
@@ -4016,7 +4060,7 @@ def main():
 
                         with col4:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #16213e; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Average Drawdown Days</h4>
                                 <h2 style="margin: 10px 0; color: #f56565;">{metrics.get('Average_Drawdown_Days', 0)}</h2>
                             </div>
@@ -4031,7 +4075,7 @@ def main():
 
                         with col1:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #0f4c75; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Volatilité</h4>
                                 <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Volatility', 0):.2%}</h2>
                             </div>
@@ -4039,7 +4083,7 @@ def main():
 
                         with col2:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #0f4c75; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Skew</h4>
                                 <h2 style="margin: 10px 0; color: #68d391;">{metrics.get('Skewness', 0):.3f}</h2>
                             </div>
@@ -4047,7 +4091,7 @@ def main():
 
                         with col3:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #0f4c75; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Kurtosis</h4>
                                 <h2 style="margin: 10px 0; color: #fbb6ce;">{metrics.get('Kurtosis', 0):.3f}</h2>
                             </div>
@@ -4061,7 +4105,7 @@ def main():
 
                         with col1:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #ff9a56 0%, #ff6b9d 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #d63031; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Volatilité</h4>
                                 <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Monthly_Volatility', 0):.2%}</h2>
                             </div>
@@ -4069,7 +4113,7 @@ def main():
 
                         with col2:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #ff9a56 0%, #ff6b9d 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #d63031; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Skew</h4>
                                 <h2 style="margin: 10px 0; color: #68d391;">{metrics.get('Monthly_Skewness', 0):.3f}</h2>
                             </div>
@@ -4077,7 +4121,7 @@ def main():
 
                         with col3:
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #ff9a56 0%, #ff6b9d 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
+                            <div style="background: #d63031; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Kurtosis</h4>
                                 <h2 style="margin: 10px 0; color: #fbb6ce;">{metrics.get('Monthly_Kurtosis', 0):.3f}</h2>
                             </div>
@@ -4149,7 +4193,7 @@ def main():
 
                         with streak_col1:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #28a745, #20c997);
+                            <div style="background: #00b894;
                                         color: white; padding: 20px; border-radius: 10px; text-align: center;">
                                 <h4 style="margin: 0; color: white;">Max Winning Streak</h4>
                                 <h1 style="margin: 10px 0; color: white; font-size: 3em;">{}</h1>
@@ -4158,7 +4202,7 @@ def main():
 
                         with streak_col2:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #dc3545, #e83e8c);
+                            <div style="background: #d63031;
                                         color: white; padding: 20px; border-radius: 10px; text-align: center;">
                                 <h4 style="margin: 0; color: white;">Max Losing Streak</h4>
                                 <h1 style="margin: 10px 0; color: white; font-size: 3em;">{}</h1>
@@ -4178,7 +4222,7 @@ def main():
 
                         with tail_col1:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #17a2b8, #138496);
+                            <div style="background: #74b9ff;
                                         color: white; padding: 20px; border-radius: 10px; text-align: center;">
                                 <h4 style="margin: 0; color: white;">Tail Ratio</h4>
                                 <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{:.2f}</h1>
@@ -4187,7 +4231,7 @@ def main():
 
                         with tail_col2:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #28a745, #20c997);
+                            <div style="background: #00b894;
                                         color: white; padding: 20px; border-radius: 10px; text-align: center;">
                                 <h4 style="margin: 0; color: white;">Outlier Win Ratio</h4>
                                 <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{:.2f}</h1>
@@ -4196,7 +4240,7 @@ def main():
 
                         with tail_col3:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #dc3545, #c82333);
+                            <div style="background: #d63031;
                                         color: white; padding: 20px; border-radius: 10px; text-align: center;">
                                 <h4 style="margin: 0; color: white;">Outlier Loss Ratio</h4>
                                 <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{:.2f}</h1>
@@ -4229,7 +4273,7 @@ def main():
 
                         with avg_col1:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                            <div style="background: #3282b8;
                                         color: white; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h5 style="margin: 0; color: white; font-size: 0.9em;">Average Winning Month</h5>
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.8em;">{:.2%}</h1>
@@ -4238,7 +4282,7 @@ def main():
 
                         with avg_col2:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #dc3545, #c82333);
+                            <div style="background: #d63031;
                                         color: white; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h5 style="margin: 0; color: white; font-size: 0.9em;">Average Losing Month</h5>
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.8em;">{:.2%}</h1>
@@ -4247,7 +4291,7 @@ def main():
 
                         with avg_col3:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                            <div style="background: #3282b8;
                                         color: white; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h5 style="margin: 0; color: white; font-size: 0.9em;">Average Winning Trade</h5>
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.8em;">{:.2%}</h1>
@@ -4256,7 +4300,7 @@ def main():
 
                         with avg_col4:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #dc3545, #c82333);
+                            <div style="background: #d63031;
                                         color: white; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h5 style="margin: 0; color: white; font-size: 0.9em;">Average Losing Trade</h5>
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.8em;">{:.2%}</h1>
@@ -4276,7 +4320,7 @@ def main():
 
                         with win_col1:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                            <div style="background: #3282b8;
                                         color: white; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h5 style="margin: 0; color: white; font-size: 0.9em;">Winning Days</h5>
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
@@ -4285,7 +4329,7 @@ def main():
 
                         with win_col2:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                            <div style="background: #3282b8;
                                         color: white; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h5 style="margin: 0; color: white; font-size: 0.9em;">Winning Months</h5>
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
@@ -4294,7 +4338,7 @@ def main():
 
                         with win_col3:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                            <div style="background: #3282b8;
                                         color: white; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h5 style="margin: 0; color: white; font-size: 0.9em;">Winning Quarters</h5>
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
@@ -4303,7 +4347,7 @@ def main():
 
                         with win_col4:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                            <div style="background: #3282b8;
                                         color: white; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h5 style="margin: 0; color: white; font-size: 0.9em;">Winning Years</h5>
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
@@ -4312,7 +4356,7 @@ def main():
 
                         with win_col5:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                            <div style="background: #3282b8;
                                         color: white; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h5 style="margin: 0; color: white; font-size: 0.9em;">Win Rate</h5>
                                 <h1 style="margin: 5px 0; color: white; font-size: 1.6em;">{:.2%}</h1>
@@ -4332,7 +4376,7 @@ def main():
 
                         with cost_col1:
                             st.markdown("""
-                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                            <div style="background: #3282b8;
                                         color: white; padding: 20px; border-radius: 10px; text-align: center;">
                                 <h4 style="margin: 0; color: white;">Transaction Costs</h4>
                                 <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{:.2f}%</h1>
@@ -4340,9 +4384,9 @@ def main():
                             """.format(transaction_costs['total_transaction_costs']), unsafe_allow_html=True)
 
                         with cost_col2:
-                            commission_color = "#dc3545" if transaction_costs['commission_costs'] < 0 else "#28a745"
+                            commission_color = "#d63031" if transaction_costs['commission_costs'] < 0 else "#00b894"
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, {commission_color}, #c82333);
+                            <div style="background: {commission_color};
                                         color: white; padding: 20px; border-radius: 10px; text-align: center;">
                                 <h4 style="margin: 0; color: white;">Commission</h4>
                                 <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{transaction_costs['commission_costs']:+.2f}%</h1>
@@ -4352,7 +4396,7 @@ def main():
                         with cost_col3:
                             swap_color = "#dc3545" if transaction_costs['swap_costs'] < 0 else "#28a745"
                             st.markdown(f"""
-                            <div style="background: linear-gradient(135deg, #007bff, #0056b3);
+                            <div style="background: #3282b8;
                                         color: white; padding: 20px; border-radius: 10px; text-align: center;">
                                 <h4 style="margin: 0; color: white;">Swap</h4>
                                 <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{transaction_costs['swap_costs']:+.2f}%</h1>
@@ -4392,7 +4436,7 @@ def main():
 
                                 st.markdown(f"""
                                 <div style="text-align: center; padding: 20px; border-radius: 10px;
-                                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin: 20px 0;">
+                                     background: #0f4c75; color: white; margin: 20px 0;">
                                     <h2 style="margin: 0;">{strategy_status}</h2>
                                     <h3 style="margin: 10px 0;">Score Global: {global_score:.1f}/100</h3>
                                 </div>
