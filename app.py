@@ -2358,9 +2358,9 @@ def main():
             background-color: rgba(59, 130, 246, 0.1);
         }
 
-        /* Métriques vibrantes */
+        /* Métriques en blanc */
         [data-testid="stMetricValue"] {
-            color: #3b82f6;
+            color: #ffffff;
             font-size: 2rem;
             font-weight: 700;
         }
@@ -4457,9 +4457,8 @@ def main():
                             """.format(transaction_costs['total_transaction_costs']), unsafe_allow_html=True)
 
                         with cost_col2:
-                            commission_color = "#d63031" if transaction_costs['commission_costs'] < 0 else "#00b894"
                             st.markdown(f"""
-                            <div style="background: {commission_color};
+                            <div style="background: #252d3d;
                                         color: white; padding: 20px; border-radius: 10px; text-align: center;">
                                 <h4 style="margin: 0; color: white;">Commission</h4>
                                 <h1 style="margin: 10px 0; color: white; font-size: 2.5em;">{transaction_costs['commission_costs']:+.2f}%</h1>
