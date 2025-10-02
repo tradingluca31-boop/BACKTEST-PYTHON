@@ -3486,32 +3486,32 @@ def main():
                             <h3 style="text-align: center; margin: 0 0 20px 0;">📊 STRATEGY OVERVIEW</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                                 <div style="text-align: center;">
-                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Trading Period</h4>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Trading Period</h4>
                                     <h3 style="margin: 5px 0; color: white;">{trading_period_years:.1f} Years</h3>
                                 </div>
                                 <div style="text-align: center;">
-                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Start Period</h4>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Start Period</h4>
                                     <h3 style="margin: 5px 0; color: white;">{start_date_str}</h3>
                                 </div>
                                 <div style="text-align: center;">
-                                    <h4 style="margin: 5px 0; color: #e8f4f8;">End Period</h4>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">End Period</h4>
                                     <h3 style="margin: 5px 0; color: white;">{end_date_str}</h3>
                                 </div>
                                 <div style="text-align: center;">
-                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Log Return</h4>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Log Return</h4>
                                     <h3 style="margin: 5px 0; color: white;">{log_return:.2%}</h3>
                                 </div>
                                 <div style="text-align: center;">
-                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Absolute Return</h4>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Absolute Return</h4>
                                     <h3 style="margin: 5px 0; color: white;">{total_return:.2%}</h3>
                                 </div>
                                 <div style="text-align: center;">
-                                    <h4 style="margin: 5px 0; color: #e8f4f8;">Number of Trades</h4>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Number of Trades</h4>
                                     <h3 style="margin: 5px 0; color: white;">{num_trades}</h3>
                                 </div>
                             </div>
                             <div style="text-align: center; margin-top: 15px;">
-                                <h4 style="margin: 5px 0; color: #e8f4f8;">Average Holding Period</h4>
+                                <h4 style="margin: 5px 0; color: #ffffff;">Average Holding Period</h4>
                                 <h3 style="margin: 5px 0; color: white;">{avg_holding_period}</h3>
                             </div>
                         </div>
@@ -3995,27 +3995,27 @@ def main():
                         st.markdown(f"""
                         <div style="background: #252d3d;
                                     padding: 25px; border-radius: 15px; color: white; margin: 20px 0;">
-                            <h3 style="text-align: center; margin: 0 0 20px 0; color: #ecf0f1;">🎯 Expected Returns and VaR</h3>
+                            <h3 style="text-align: center; margin: 0 0 20px 0; color: #ffffff;">🎯 Expected Returns and VaR</h3>
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;">
                                 <div style="text-align: center; background: rgba(52, 152, 219, 0.2); padding: 15px; border-radius: 10px;">
-                                    <h4 style="margin: 5px 0; color: #3498db;">Expected Daily %</h4>
-                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{expected_daily:.2%}</h2>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Expected Daily %</h4>
+                                    <h2 style="margin: 5px 0; color: #ffffff; font-size: 24px;">{expected_daily:.2%}</h2>
                                 </div>
                                 <div style="text-align: center; background: rgba(46, 204, 113, 0.2); padding: 15px; border-radius: 10px;">
-                                    <h4 style="margin: 5px 0; color: #2ecc71;">Expected Monthly %</h4>
-                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{expected_monthly:.2%}</h2>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Expected Monthly %</h4>
+                                    <h2 style="margin: 5px 0; color: #ffffff; font-size: 24px;">{expected_monthly:.2%}</h2>
                                 </div>
                                 <div style="text-align: center; background: rgba(155, 89, 182, 0.2); padding: 15px; border-radius: 10px;">
-                                    <h4 style="margin: 5px 0; color: #9b59b6;">Expected Yearly %</h4>
-                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{expected_yearly:.2%}</h2>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Expected Yearly %</h4>
+                                    <h2 style="margin: 5px 0; color: #ffffff; font-size: 24px;">{expected_yearly:.2%}</h2>
                                 </div>
                                 <div style="text-align: center; background: rgba(231, 76, 60, 0.2); padding: 15px; border-radius: 10px;">
-                                    <h4 style="margin: 5px 0; color: #e74c3c;">Risk of Ruin</h4>
-                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{risk_of_ruin:.2%}</h2>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Risk of Ruin</h4>
+                                    <h2 style="margin: 5px 0; color: #ffffff; font-size: 24px;">{risk_of_ruin:.2%}</h2>
                                 </div>
                                 <div style="text-align: center; background: rgba(241, 196, 15, 0.2); padding: 15px; border-radius: 10px;">
-                                    <h4 style="margin: 5px 0; color: #f1c40f;">Daily VaR</h4>
-                                    <h2 style="margin: 5px 0; color: #ecf0f1; font-size: 24px;">{daily_var:.2%}</h2>
+                                    <h4 style="margin: 5px 0; color: #ffffff;">Daily VaR</h4>
+                                    <h2 style="margin: 5px 0; color: #ffffff; font-size: 24px;">{daily_var:.2%}</h2>
                                 </div>
                             </div>
                         </div>
@@ -4032,7 +4032,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Log Return</h4>
-                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Log_Return', 0):.2%}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Log_Return', 0):.2%}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4040,7 +4040,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Absolute Return</h4>
-                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Absolute_Return', 0):.2%}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Absolute_Return', 0):.2%}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4048,7 +4048,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Alpha</h4>
-                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Alpha', 0):.2%}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Alpha', 0):.2%}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4056,7 +4056,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Number of Trades</h4>
-                                <h2 style="margin: 10px 0; color: #90a4ae;">{metrics.get('Number_of_Trades', 0)}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Number_of_Trades', 0)}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4071,7 +4071,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Sharpe Ratio</h4>
-                                <h2 style="margin: 10px 0; color: #68d391;">{metrics.get('Sharpe', 0):.2f}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Sharpe', 0):.2f}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4079,7 +4079,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Probabilistic Sharpe Ratio</h4>
-                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Probabilistic_Sharpe_Ratio', 0):.2%}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Probabilistic_Sharpe_Ratio', 0):.2%}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4087,16 +4087,15 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Sortino Ratio</h4>
-                                <h2 style="margin: 10px 0; color: #9f7aea;">{metrics.get('Sortino', 0):.2f}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Sortino', 0):.2f}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
                         with col4:
-                            calmar_color = "#f56565" if metrics.get('Calmar', 0) < 1 else "#68d391"
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Calmar Ratio</h4>
-                                <h2 style="margin: 10px 0; color: {calmar_color};">{metrics.get('Calmar', 0):.2f}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Calmar', 0):.2f}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4111,7 +4110,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Max Drawdown</h4>
-                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Max_Drawdown', 0):.2%}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Max_Drawdown', 0):.2%}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4119,7 +4118,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Longest Drawdown</h4>
-                                <h2 style="margin: 10px 0; color: #f56565;">{metrics.get('Longest_Drawdown', 0)}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Longest_Drawdown', 0)}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4127,7 +4126,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Average Drawdown</h4>
-                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Average_Drawdown_Pct', 0):.2%}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Average_Drawdown_Pct', 0):.2%}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4135,7 +4134,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Average Drawdown Days</h4>
-                                <h2 style="margin: 10px 0; color: #f56565;">{metrics.get('Average_Drawdown_Days', 0)}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Average_Drawdown_Days', 0)}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4150,7 +4149,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Volatilité</h4>
-                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Volatility', 0):.2%}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Volatility', 0):.2%}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4158,7 +4157,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Skew</h4>
-                                <h2 style="margin: 10px 0; color: #68d391;">{metrics.get('Skewness', 0):.3f}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Skewness', 0):.3f}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4166,7 +4165,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Kurtosis</h4>
-                                <h2 style="margin: 10px 0; color: #fbb6ce;">{metrics.get('Kurtosis', 0):.3f}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Kurtosis', 0):.3f}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4180,7 +4179,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Volatilité</h4>
-                                <h2 style="margin: 10px 0; color: #4fc3f7;">{metrics.get('Monthly_Volatility', 0):.2%}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Monthly_Volatility', 0):.2%}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4188,7 +4187,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Skew</h4>
-                                <h2 style="margin: 10px 0; color: #68d391;">{metrics.get('Monthly_Skewness', 0):.3f}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Monthly_Skewness', 0):.3f}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -4196,7 +4195,7 @@ def main():
                             st.markdown(f"""
                             <div style="background: #252d3d; padding: 20px; border-radius: 12px; text-align: center; color: white; margin: 5px;">
                                 <h4 style="margin: 5px 0; font-size: 14px;">Kurtosis</h4>
-                                <h2 style="margin: 10px 0; color: #fbb6ce;">{metrics.get('Monthly_Kurtosis', 0):.3f}</h2>
+                                <h2 style="margin: 10px 0; color: #ffffff;">{metrics.get('Monthly_Kurtosis', 0):.3f}</h2>
                             </div>
                             """, unsafe_allow_html=True)
 
